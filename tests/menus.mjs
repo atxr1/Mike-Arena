@@ -1,0 +1,23 @@
+// Menu captures at iPhone size: title, main menu, fighter select, trainer select, loading card, trainer VS card.
+import { chromium } from 'playwright';
+import { mkdirSync } from 'node:fs';
+const OUT = 'shots/menus'; mkdirSync(OUT, { recursive: true });
+const PORT = process.env.PORT || 8078;
+const browser = await chromium.launch();
+const page = await (await browser.newContext({ viewport: { width: 844, height: 390 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true })).newPage();
+const errs = []; page.on('pageerror', (e) => errs.push(e.message));
+let n = 0; const snap = async (name) => page.screenshot({ path: `${OUT}/${String(++n).padStart(2, '0')}-${name}.png` });
+const click = async (sel, twice) => { await page.click(sel); if (twice) { await page.waitForTimeout(80); if (await page.$(sel)) await page.click(sel); } await page.waitForTimeout(150); };
+await page.goto(`http://localhost:${PORT}/?test`, { waitUntil: 'networkidle' });
+await page.waitForTimeout(1500); await snap('title');
+await page.click('.title'); await page.waitForSelector('.mm-list'); await page.waitForTimeout(120); await snap('main-transition'); await page.waitForTimeout(900); await snap('main');
+await click('[data-go="quick"]'); await page.waitForTimeout(500); await snap('env');
+await click('[data-env="ground"]'); await click('[data-f="pokemon"]'); await page.waitForSelector('.grid'); await page.waitForTimeout(700); await snap('fighter');
+await click('[data-id="garchomp"]'); await page.waitForTimeout(700); await snap('fighter-garchomp');
+await page.goto(`http://localhost:${PORT}/?test`, { waitUntil: 'networkidle' }); await page.click('.title'); await page.waitForSelector('.mm-list');
+await click('[data-go="quick"]'); await click('[data-env="water"]'); await click('[data-f="trainer"]'); await page.waitForSelector('.grid'); await page.waitForTimeout(700); await snap('trainer');
+await click('.grid [data-id="misty"]', true); await click('.grid [data-id="red"]', true); await click('.maps [data-id="azure_bay"]'); await page.click('[data-l="normal"]');
+await page.waitForTimeout(60); await snap('loading');
+await page.waitForSelector('.vs', { timeout: 20000 }); await page.waitForTimeout(250); await snap('vs-slam'); await page.waitForTimeout(700); await snap('vs');
+console.log(errs.length ? 'errors: ' + errs.join(' | ') : 'no page errors');
+await browser.close();

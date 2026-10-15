@@ -1,0 +1,25 @@
+// Trainer Battle cinematics: VS card, a mid-match knockout with the replacement send-out and the trainer's call.
+import { chromium } from 'playwright';
+import { mkdirSync } from 'node:fs';
+const OUT = 'shots/cine/trainer'; mkdirSync(OUT, { recursive: true });
+const PORT = process.env.PORT || 8078;
+const browser = await chromium.launch();
+const page = await (await browser.newContext({ viewport: { width: 844, height: 390 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true })).newPage();
+const errs = []; page.on('pageerror', (e) => errs.push(e.message));
+let n = 0; const snap = async (name) => page.screenshot({ path: `${OUT}/${String(++n).padStart(2, '0')}-${name}.png` });
+const click = async (sel, twice) => { await page.click(sel); if (twice) { await page.waitForTimeout(80); if (await page.$(sel)) await page.click(sel); } await page.waitForTimeout(150); };
+await page.goto(`http://localhost:${PORT}/?test&autoplay`, { waitUntil: 'networkidle' });
+await page.click('.title'); await page.waitForSelector('.mm-list');
+await click('[data-go="quick"]'); await click('[data-env="ground"]'); await click('[data-f="trainer"]'); await page.waitForSelector('.grid');
+await click('.grid [data-id="brock"]', true); await click('.grid [data-id="cynthia"]', true); await click('.maps [data-id="indigo"]'); await click('[data-l="normal"]');
+await page.waitForSelector('.vs', { timeout: 20000 }); await page.waitForTimeout(900); await snap('vs');
+await page.waitForFunction(() => window.__app.scene && window.__app.scene.fightCalled, null, { timeout: 15000 });
+await page.waitForTimeout(1500); await snap('gameplay');
+await page.evaluate(() => { const S = window.__app.scene.S; S.activeOf(1).hp = 1; });
+await page.waitForFunction(() => { const S = window.__app.scene.S; return S.activeOf(1) && !S.activeOf(1).alive; }, null, { timeout: 20000 });
+await page.waitForTimeout(500); await snap('faint');
+await page.waitForFunction(() => window.__app.scene.dir.call, null, { timeout: 15000 }).catch(() => console.log('no call seen'));
+await page.waitForTimeout(300); await snap('sendout-call');
+await page.waitForTimeout(900); await snap('after-sendout');
+console.log(errs.length ? 'errors: ' + errs.join(' | ') : 'no page errors');
+await browser.close();
