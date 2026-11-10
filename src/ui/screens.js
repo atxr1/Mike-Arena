@@ -11,6 +11,8 @@ import { face, glyph, prompt, pill, shoulder, dpad, nub, SLOT_BUTTON } from './g
 import { BattleScene } from '../modes/battle.js';
 import { TRAV_LABEL } from './touch.js';
 import { createTournament, currentMatch, recordResult, tourStep, pendingSims, roundName, ROUND_NAMES } from '../modes/tournament.js';
+import { createArcade, recordArcade, stageScore, arcadeRank, arcadeWins, ARCADE_LEVELS } from '../modes/arcade.js';
+import { MATCH } from '../game/sim.js';
 import { confetti } from '../render/pixelart.js';
 import { VERSION } from '../version.js';
 
@@ -24,6 +26,9 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&l
 const chips = (types) => `<span class="chips">${types.map((t) => `<span class="chip" style="background:${TYPE_COLORS[t]}">${t.toUpperCase()}</span>`).join('')}</span>`;
 const portrait = (sprite, size = 40) => `<i class="pi" style="display:inline-block;width:${size}px;height:${size}px;background:url(assets/fighters/${sprite}-portraits.png) 0 0/auto ${size}px;image-rendering:pixelated;border-radius:3px"></i>`;
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
+const clock = (secs) => `${Math.floor(secs / 60)}:${String(Math.floor(secs % 60)).padStart(2, '0')}`;
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+const num = (n) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 
 export class Screens {
   constructor(app) { this.app = app; this.cfg = null; }
@@ -57,13 +62,18 @@ export class Screens {
       const ok = T.rounds && ROSTER[T.env] && T.rounds.every((r) => r.every((m) => [m.a, m.b].every((e) => !e || (e.team && e.team.every((id) => CONTENT.species[id]) && CONTENT.species[e.icon]))));
       if (!ok) { this.store.remove('tournament'); this.app.toast('An old tournament save couldn\'t be loaded and was cleared.'); }
     }
+    const A = this.store.read('arcade');
+    if (A) {
+      const ok = ROSTER[A.env] && Array.isArray(A.stages) && A.stages.every((s) => CONTENT.maps[s.map] && (A.format === 'pokemon' ? CONTENT.species[s.opp] : CONTENT.trainers[s.opp])) && (A.format === 'pokemon' ? CONTENT.species[A.fighter] : CONTENT.trainers[A.trainer]);
+      if (!ok) { this.store.remove('arcade'); this.app.toast('An old arcade run couldn\'t be loaded and was cleared.'); }
+    }
     return last;
   }
   // ------------------------------------------------------------------------------------------------ main menu
   main() {
     this.app.scene = null;
     this.app.audio.playMusic('Title'); this.app.audio.stopAmbience();
-    const last = this.sanitizeSaves(), T = this.store.read('tournament');
+    const last = this.sanitizeSaves(), T = this.store.read('tournament'), A = this.store.read('arcade');
     const lastLabel = last.format === 'pokemon' ? `${CONTENT.species[last.fighter].name} vs ${last.opponent === 'random' ? 'a random rival' : CONTENT.species[last.opponent] ? CONTENT.species[last.opponent].name : 'a random rival'}` : `${CONTENT.trainers[last.trainer].name}'s team vs ${last.opponent === 'random' || !CONTENT.trainers[last.opponent] ? 'a random trainer' : CONTENT.trainers[last.opponent].name}`;
     const rec = this.store.read('records');
     const el = this.app.setScreen(`<div class="screen mainmenu">
@@ -72,19 +82,25 @@ export class Screens {
         <button class="mm-item quick nav" data-go="again">Fight again<small>${esc(lastLabel)} · ${ENV_INFO[last.env].name}</small></button>
         <button class="mm-item nav" data-go="quick">Quick Battle<small>Pick a fighter or a trainer and battle now</small></button>
         ${T && T.status === 'active' ? `<button class="mm-item nav" data-go="resume">Resume tournament<small>${esc(roundName(T))} · ${ENV_INFO[T.env].name} · ${T.format === 'pokemon' ? 'Pokémon' : 'Trainer'} Battle</small></button>` : ''}
+        ${A && A.status === 'active' ? `<button class="mm-item nav" data-go="arcresume">Resume arcade run<small>Stage ${A.index + 1} of ${A.stages.length} · ${ENV_INFO[A.env].name} · ${num(A.score)} points</small></button>` : ''}
+        <button class="mm-item nav" data-go="arcade">Arcade<small>Six battles in a row, each one tougher</small></button>
         <button class="mm-item nav" data-go="tour">Tournament<small>A full bracket, with a championship at the end</small></button>
-        <button class="mm-item nav" data-go="settings">Settings</button>
-        <button class="mm-item nav" data-go="controls">Controls</button>
-        <button class="mm-item nav" data-go="credits">Credits</button>
-        <div class="mm-foot">${rec.wins} wins · ${rec.losses} losses · ${rec.championships} championships · v${VERSION}</div>
+        <div class="mm-row"><button class="mm-item mini nav" data-go="training">Training</button><button class="mm-item mini nav" data-go="surprise">Surprise battle</button><button class="mm-item mini nav" data-go="records">Records</button></div>
+        <div class="mm-row"><button class="mm-item mini nav" data-go="settings">Settings</button><button class="mm-item mini nav" data-go="controls">Controls</button><button class="mm-item mini nav" data-go="credits">Credits</button></div>
+        <div class="mm-foot">${plural(rec.wins, 'win', 'wins')} · ${plural(rec.losses, 'loss', 'losses')}${rec.streak > 1 ? ` · ${rec.streak} in a row` : ''} · ${plural(rec.championships, 'championship', 'championships')} · v${VERSION}</div>
       </div></div>`, { back: () => this.title() });
-    [...el.querySelectorAll('.mm-item, .mm-foot')].forEach((b, i) => b.style.setProperty('--i', i));
+    [...el.querySelectorAll('.mm-list > *')].forEach((b, i) => b.style.setProperty('--i', i));
     for (const b of el.querySelectorAll('[data-go]')) b.addEventListener('click', () => {
       const g = b.dataset.go;
       if (g === 'again') this.launchQuick(Object.assign({ mode: 'quick' }, last));
       else if (g === 'quick') this.envStep({ mode: 'quick', ...last });
       else if (g === 'tour') this.envStep({ mode: 'tour', ...last, size: last.size || 8 });
       else if (g === 'resume') this.bracket();
+      else if (g === 'arcade') this.envStep({ mode: 'arcade', ...last });
+      else if (g === 'arcresume') this.arcade();
+      else if (g === 'training') this.envStep({ mode: 'training', ...last, format: 'pokemon' });
+      else if (g === 'surprise') this.surprise(last);
+      else if (g === 'records') this.records(() => this.main());
       else if (g === 'settings') this.settings(() => this.main());
       else if (g === 'controls') this.controls(() => this.main());
       else if (g === 'credits') this.credits(() => this.main());
@@ -98,16 +114,23 @@ export class Screens {
   }
   crumbs(c) {
     const parts = [ENV_INFO[c.env].name, c.format === 'pokemon' ? 'Pokémon Battle' : 'Trainer Battle'];
-    return (c.mode === 'tour' ? 'Tournament · ' : 'Quick Battle · ') + parts.join(' · ');
+    return this.modeName(c) + ' · ' + (c.mode === 'training' ? parts[0] : parts.join(' · '));
   }
-  wireFightNow(el, c) { const b = el.querySelector('[data-key="start"]'); if (b) b.addEventListener('click', () => (c.mode === 'tour' ? this.launchTour(c) : this.launchQuick(c))); }
+  modeName(c) { return { tour: 'Tournament', arcade: 'Arcade', training: 'Training' }[c.mode] || 'Quick Battle'; }
+  launch(c) { if (c.mode === 'tour') this.launchTour(c); else if (c.mode === 'arcade') this.launchArcade(c); else if (c.mode === 'training') this.launchTraining(c); else this.launchQuick(c); }
+  // one tap: a random Pokémon, opponent and arena in a random environment, at the difficulty you last used
+  surprise(last) {
+    const env = pick(Object.keys(ROSTER)), fighter = pick(ROSTER[env]);
+    this.launchQuick({ mode: 'quick', ...last, env, format: 'pokemon', fighter, opponent: 'random', map: 'random' });
+  }
+  wireFightNow(el, c) { const b = el.querySelector('[data-key="start"]'); if (b) b.addEventListener('click', () => this.launch(c)); }
   // ------------------------------------------------------------------------------------------------ steps
   envStep(c) {
     this.cfg = c;
-    const el = this.app.setScreen(`<div class="screen">${this.bar(c.mode === 'tour' ? 'Tournament' : 'Quick Battle', 'Choose where to battle')}
+    const el = this.app.setScreen(`<div class="screen">${this.bar(this.modeName(c), 'Choose where to battle')}
       <div class="cards">${Object.entries(ENV_INFO).map(([k, v]) => `<button class="card nav" data-env="${k}" style="background-image:url(assets/maps/${v.thumb}-thumb.png)"><b>${v.name}</b><span>${v.blurb}</span><span>${ROSTER[k].length} fighters · 4 arenas</span></button>`).join('')}</div>
       ${this.footer(false)}</div>`, { back: () => this.main(), focus: `[data-env="${c.env}"]` });
-    for (const b of el.querySelectorAll('[data-env]')) b.addEventListener('click', () => { if (c.env !== b.dataset.env) { c.env = b.dataset.env; c.fighter = ROSTER[c.env].includes(c.fighter) ? c.fighter : ROSTER[c.env][0]; c.opponent = 'random'; c.map = 'random'; } this.formatStep(c); });
+    for (const b of el.querySelectorAll('[data-env]')) b.addEventListener('click', () => { if (c.env !== b.dataset.env) { c.env = b.dataset.env; c.fighter = ROSTER[c.env].includes(c.fighter) ? c.fighter : ROSTER[c.env][0]; c.opponent = 'random'; c.map = 'random'; } if (c.mode === 'training') this.fighterStep(c); else this.formatStep(c); });
   }
   formatStep(c) {
     this.cfg = c;
@@ -124,20 +147,20 @@ export class Screens {
     const roster = ROSTER[c.env];
     const cur = opponent ? c.opponent : c.fighter;
     const vs = opponent ? c.fighter : (c.opponent !== 'random' && roster.includes(c.opponent) ? c.opponent : null);
-    const cells = (opponent ? `<button class="cell random nav" data-id="random" data-hover="1">?<span class="nm">Random</span></button>` : '') + roster.map((id) => { const s = CONTENT.species[id]; return `<button class="cell nav" data-id="${id}" data-hover="1" style="--tc:${TYPE_COLORS[s.types[0]]}">${portrait(s.sprite)}<span class="nm">${s.name}</span></button>`; }).join('');
+    const cells = `<button class="cell random nav" data-id="random" data-hover="1">?<span class="nm">Random</span></button>` + roster.map((id) => { const s = CONTENT.species[id]; return `<button class="cell nav" data-id="${id}" data-hover="1" style="--tc:${TYPE_COLORS[s.types[0]]}">${portrait(s.sprite)}<span class="nm">${s.name}</span></button>`; }).join('');
     const title = opponent ? 'Opponent' : c.mode === 'tour' ? 'Your fighter' : 'Your fighter';
     const el = this.app.setScreen(`<div class="screen">${this.bar(title, this.crumbs(c))}
       <div class="select"><div class="grid">${cells}</div><div class="detail" id="detail"></div></div>${this.footer(true)}</div>`,
-    { back: () => (opponent ? this.fighterStep(c) : this.formatStep(c)), focus: `[data-id="${cur || roster[0]}"]` });
+    { back: () => (opponent ? this.fighterStep(c) : c.mode === 'training' ? this.envStep(c) : this.formatStep(c)), focus: `[data-id="${cur || roster[0]}"]` });
     const det = el.querySelector('#detail');
-    const show = (id) => { det.innerHTML = id === 'random' ? `<div class="hero"><div class="who"><b>Random</b><span class="role">A surprise opponent from the ${ENV_INFO[c.env].name} roster</span></div></div>` : this.detailHtml(id, opponent ? c.fighter : vs, opponent); this.app.paintSprites(det); };
+    const show = (id) => { det.innerHTML = id === 'random' ? `<div class="hero"><div class="who"><b>Random</b><span class="role">${opponent ? 'A surprise opponent' : 'A surprise pick'} from the ${ENV_INFO[c.env].name} roster</span></div></div>` : this.detailHtml(id, opponent ? c.fighter : vs, opponent); this.app.paintSprites(det); };
     for (const b of el.querySelectorAll('[data-id]')) {
       b.addEventListener('focusnav', () => show(b.dataset.id));
       b.addEventListener('pointerenter', () => show(b.dataset.id));
       b.addEventListener('click', () => {
         if (this.app.focused !== b) { this.app.focus(b); show(b.dataset.id); return; }   // first tap previews, second confirms
         if (opponent) { c.opponent = b.dataset.id; c.mode === 'tour' ? this.levelStep(c) : this.mapStep(c); }
-        else { c.fighter = b.dataset.id; c.mode === 'tour' ? this.sizeStep(c) : this.fighterStep(c, true); }
+        else { c.fighter = b.dataset.id === 'random' ? pick(roster) : b.dataset.id; if (c.mode === 'tour') this.sizeStep(c); else if (c.mode === 'arcade') this.launchArcade(c); else this.fighterStep(c, true); }
       });
     }
     show(cur && (cur === 'random' || roster.includes(cur)) ? cur : roster[0]);
@@ -155,15 +178,17 @@ export class Screens {
     const mega = s.mega ? `${s.mega.primal ? 'Primal Reversion' : 'Mega Evolves'} into ${s.mega.name}, then ` : '';
     const trav = s.trav ? `<div class="trav">${shoulder('R', 16)} ${TRAV_LABEL[s.trav] || ''}: ${esc(TRAV_TEXT[s.trav] || '')}</div>` : '';
     const B = s.base || {}, stat = (k, label) => `<span>${label}</span><i style="--v:${Math.min(1, (B[k] || 0) / 160).toFixed(3)}"></i>`;
+    const myRec = !opponent && this.store.read('records').byFighter[id];
+    const recLine = myRec ? `<span class="role rec">Your record: ${plural(myRec.w, 'win', 'wins')}, ${plural(myRec.l, 'loss', 'losses')}</span>` : '';
     const stats = `<div class="stats6">${stat('hp', 'HP')}${stat('atk', 'Atk')}${stat('def', 'Def')}${stat('spa', 'SpA')}${stat('spd', 'SpD')}${stat('spe', 'Spe')}</div>`;
-    return `<div class="hero" style="--tc:${TYPE_COLORS[s.types[0]]}"><canvas class="big" data-sprite="${s.sprite}" data-anim="${this.cfg && this.cfg.env === 'air' ? 'Walk' : 'Idle'}"></canvas><div class="who"><b>${s.name}</b><span class="role">${s.role} — ${ROLE_INFO[s.role.split('/')[0]] || ''}</span>${chips(s.types)}</div>${stats}</div>
+    return `<div class="hero" style="--tc:${TYPE_COLORS[s.types[0]]}"><canvas class="big" data-sprite="${s.sprite}" data-anim="${this.cfg && this.cfg.env === 'air' ? 'Walk' : 'Idle'}"></canvas><div class="who"><b>${s.name}</b><span class="role">${s.role} — ${ROLE_INFO[s.role.split('/')[0]] || ''}</span>${chips(s.types)}${recLine}</div>${stats}</div>
       <div class="moves">${moves}</div>
       <div class="ult">${shoulder('L', 16)} Ultimate: ${mega}${esc(ult ? ult.name : '')}</div>${trav}${vs ? `<div class="trav" style="color:#b9b0d6">Matchup tags: ${opponent ? 'its' : 'your'} moves against ${vs.name}.</div>` : ''}`;
   }
   trainerStep(c, opponent = false) {
     this.cfg = c;
     const cur = opponent ? c.opponent : c.trainer;
-    const cells = (opponent ? `<button class="cell random nav" data-id="random" data-hover="1">?<span class="nm">Random</span></button>` : '') + TRAINER_ORDER.map((k) => { const t = CONTENT.trainers[k]; return `<button class="cell nav" data-id="${k}" data-hover="1" style="--tc:${t.color}"><img src="assets/trainers/${t.portrait}.png" alt=""><span class="nm">${t.name}</span></button>`; }).join('');
+    const cells = `<button class="cell random nav" data-id="random" data-hover="1">?<span class="nm">Random</span></button>` + TRAINER_ORDER.map((k) => { const t = CONTENT.trainers[k]; return `<button class="cell nav" data-id="${k}" data-hover="1" style="--tc:${t.color}"><img src="assets/trainers/${t.portrait}.png" alt=""><span class="nm">${t.name}</span></button>`; }).join('');
     const el = this.app.setScreen(`<div class="screen">${this.bar(opponent ? 'Opponent trainer' : 'Your trainer', this.crumbs(c))}
       <div class="select"><div class="grid">${cells}</div><div class="detail" id="detail"></div></div>${this.footer(true)}</div>`,
     { back: () => (opponent ? this.trainerStep(c) : this.formatStep(c)), focus: `[data-id="${cur || 'ash'}"]` });
@@ -181,7 +206,7 @@ export class Screens {
       b.addEventListener('click', () => {
         if (this.app.focused !== b) { this.app.focus(b); show(b.dataset.id); return; }
         if (opponent) { c.opponent = b.dataset.id; c.mode === 'tour' ? this.levelStep(c) : this.mapStep(c); }
-        else { c.trainer = b.dataset.id; c.mode === 'tour' ? this.sizeStep(c) : this.trainerStep(c, true); }
+        else { c.trainer = b.dataset.id === 'random' ? pick(TRAINER_ORDER) : b.dataset.id; if (c.mode === 'tour') this.sizeStep(c); else if (c.mode === 'arcade') this.launchArcade(c); else this.trainerStep(c, true); }
       });
     }
     show(cur && CONTENT.trainers[cur] ? cur : opponent ? 'random' : 'ash');
@@ -194,7 +219,7 @@ export class Screens {
       <div class="maps"><button class="mapc random nav" data-id="random"><img alt="" src="data:image/gif;base64,R0lGODlhAQABAAAAACw="><div><b>Random</b><span>Any of the four ${ENV_INFO[c.env].name.toLowerCase()} arenas</span></div></button>
       ${ids.map((id) => { const m = CONTENT.maps[id]; return `<button class="mapc nav" data-id="${id}"><img src="assets/maps/${id}-thumb.png" alt=""><div><b>${m.name}</b><span>${m.region} · ${esc(m.feature ? FEATURE_INFO[m.feature] : 'A roaring crowd cheers every big hit.')}</span></div></button>`; }).join('')}</div>
       ${this.footer(true)}</div>`, { back: () => (c.format === 'pokemon' ? this.fighterStep(c, true) : this.trainerStep(c, true)), focus: `[data-id="${c.map || 'random'}"]` });
-    for (const b of el.querySelectorAll('[data-id]')) b.addEventListener('click', () => { c.map = b.dataset.id; this.levelStep(c); });
+    for (const b of el.querySelectorAll('[data-id]')) b.addEventListener('click', () => { c.map = b.dataset.id; if (c.mode === 'training') this.launchTraining(c); else this.levelStep(c); });
     this.wireFightNow(el, c);
   }
   sizeStep(c) {
@@ -228,19 +253,32 @@ export class Screens {
     return { env: c.env, format: 'trainer', map, seed, sides: [{ team: CONTENT.trainers[me].teams[c.env].slice(), trainer: me, control: 'human' }, { team: CONTENT.trainers[opp].teams[c.env].slice(), trainer: opp, control: 'cpu', level: c.level || 'normal' }] };
   }
   launchQuick(c) { this.cfg = c; this.rememberLast(c); this.runBattle(this.buildSetup(c), { kind: 'quick', cfg: c }); }
+  // training: no clock, no knockouts, HP refills, and an opponent that stands still until you ask it to fight back
+  launchTraining(c) {
+    this.cfg = c; c.format = 'pokemon';
+    const setup = this.buildSetup(c);
+    setup.sides[1].level = 'dummy'; setup.rules = { training: true }; setup.training = true; setup.noPotm = true; setup.title = 'Training';
+    this.runBattle(setup, { kind: 'training', cfg: c });
+  }
   async runBattle(setup, ctx) {
     this.app.audio.unlock();
     if (this.app.test && this.app.test.autoplay) { setup = JSON.parse(JSON.stringify(setup)); setup.sides[0].control = 'cpu'; setup.sides[0].level = 'hard'; setup.sides[0].auto = true; }
-    const tips = ['Every move costs stamina. Light moves are free to repeat; signature moves need a breather.', 'Dodge just before a hit lands for a perfect dodge and a stronger counter.', 'Knock a foe into a wall for bonus wall-slam damage.', 'In the last 30 seconds stamina regenerates twice as fast.', 'Fill the Ultimate ring with damage, then press L.', 'Type matchups matter: super effective hits deal 1.5×.'];
+    const tips = ['Every move costs stamina. Light moves are free to repeat; signature moves need a breather.', 'Dodge just before a hit lands for a perfect dodge and a stronger counter.', 'Knock a foe into a wall for bonus wall-slam damage.', 'In the last 30 seconds stamina regenerates twice as fast.', 'Fill the Ultimate ring with damage, then press L.', 'Type matchups matter: super effective hits deal 1.5×.', 'Two attacks that meet cancel out in a clash.', 'Pause and choose Moves to check what your Pokémon can do.', 'Stamina refills half as fast while you attack. Step back to recover.', 'Training has no clock and no knockouts: a good place to learn a new Pokémon.'];
+    // half the time, a tip about the Pokémon you are about to use
+    const mine = CONTENT.species[setup.sides[0].team[0]];
+    if (mine && mine.trav && TRAV_TEXT[mine.trav] && Math.random() < 0.5) { tips.length = 0; tips.push(`${mine.name}: ${TRAV_LABEL[mine.trav] || 'R'} — ${TRAV_TEXT[mine.trav]}`); }
     const LM = CONTENT.maps[setup.map];
-    const el = this.app.setScreen(`<div class="screen loading" style="background-image:url(assets/maps/${LM.img}.png)"><h2>${LM.name}</h2><div class="ld-sub">${LM.region} · ${setup.format === 'trainer' ? 'Trainer Battle' : 'Pokémon Battle'}</div><div class="bar"><i></i></div><div class="tip">${pick(tips)}</div></div>`);
+    const el = this.app.setScreen(`<div class="screen loading" style="background-image:url(assets/maps/${LM.img}.png)"><h2>${LM.name}</h2><div class="ld-sub">${LM.region} · ${setup.title ? esc(setup.title) : setup.format === 'trainer' ? 'Trainer Battle' : 'Pokémon Battle'}</div><div class="bar"><i></i></div><div class="tip">${esc(pick(tips))}</div></div>`);
     const bar = el.querySelector('.bar i');
     this.app.audio.musicOff();
     const scene = new BattleScene(this.app, setup, {
       restart: () => { scene.destroy(); setup.seed = (Math.random() * 2 ** 31) >>> 0; this.runBattle(setup, ctx); },
+      // training: swap the opponent between standing still and fighting back
+      setLevel: (level) => { scene.destroy(); setup.sides[1].level = level; setup.seed = (Math.random() * 2 ** 31) >>> 0; this.runBattle(setup, ctx); },
       quit: () => {
         this.app.scene = null;
         if (ctx.kind === 'tour') { this.recordTour(false); this.afterTourMatch(); }   // quitting a tournament match is a forfeit
+        else if (ctx.kind === 'arcade') { this.finishArcadeBattle('loss'); this.arcade(); }   // and so is quitting an arcade battle
         else this.main();
       },
       finished: (info) => this.results(info, setup, ctx),
@@ -258,7 +296,23 @@ export class Screens {
     rec.played++;
     if (info.draw) rec.draws++; else if (info.won) rec.wins++; else rec.losses++;
     for (const f of S.sides[me].team) { const r = rec.byFighter[f.id] || (rec.byFighter[f.id] = { w: 0, l: 0 }); if (info.won) r.w++; else if (!info.draw) r.l++; }
+    // winning streak, and the fastest knockout win so far
+    if (info.won) { rec.streak = (rec.streak || 0) + 1; rec.bestStreak = Math.max(rec.bestStreak || 0, rec.streak); } else if (!info.draw) rec.streak = 0;
+    const secs = S.fightTicks / 60;
+    let fastest = false;
+    if (info.won && S.result && S.result.reason === 'ko' && (!rec.fastestWin || secs < rec.fastestWin.secs)) {
+      fastest = !!rec.fastestWin;
+      rec.fastestWin = { secs: Math.round(secs * 10) / 10, who: S.sides[me].trainer ? CONTENT.trainers[S.sides[me].trainer].name : S.sides[me].team[0].sp.name, env: S.env, format: S.format };
+    }
     this.store.write('records', rec);
+    // arcade: score the stage and save the run now (the app can be closed on this screen)
+    if (ctx.kind === 'arcade' && !ctx.recorded) {
+      ctx.recorded = true;
+      const team = S.sides[me].team, total = S.format === 'trainer' ? MATCH.trainerTicks : MATCH.pokemonTicks;
+      const A0 = this.store.read('arcade');
+      ctx.parts = info.won && A0 ? stageScore(A0.stages[A0.index].level, S.hpScores()[me], S.sudden ? 0 : Math.max(0, S.timeLeft) / total, team.reduce((a, f) => a + f.stats.perfect, 0), team.every((f) => !f.stats.taken)) : null;
+      this.finishArcadeBattle(info.draw ? 'draw' : info.won ? 'win' : 'loss', ctx.parts);
+    }
     // tournament: save the result now (the app can be closed on this screen), then resolve the CPU matches
     if (ctx.kind === 'tour' && !ctx.recorded) { ctx.recorded = true; this.recordTour(info.won || (info.draw && Math.random() < 0.5)); }
     const winSide = S.result && S.result.winner >= 0 ? S.sides[S.result.winner] : null;
@@ -268,14 +322,25 @@ export class Screens {
     const all = S.sides.flatMap((sd) => sd.team), mvp = all.reduce((a, f) => (f.stats.dealt > a.stats.dealt ? f : a), all[0]);
     let ri = 0;
     for (const [i, sd] of S.sides.entries()) for (const f of sd.team) rows.push(`<tr class="${i === me ? 'me' : ''}" style="--i:${ri++}"><td class="${f === mvp && f.stats.dealt > 0 ? 'mvp' : ''}">${f.sp.name}${f.form === 'mega' ? ' (Mega)' : ''}</td><td data-n="${f.stats.dealt}">${f.stats.dealt}</td><td>${f.stats.hits}</td><td>${f.stats.se}</td><td>${f.stats.perfect}</td><td>${f.stats.ults}</td><td>${Math.max(0, f.hp)}/${f.maxHp}</td></tr>`);
-    const isTour = ctx.kind === 'tour';
+    const isTour = ctx.kind === 'tour', isArc = ctx.kind === 'arcade';
+    const A = isArc ? this.store.read('arcade') : null;
+    const meta = [`Battle time ${clock(secs)}`];
+    if (fastest) meta.push('your fastest win yet');
+    if (info.won && rec.streak > 1) meta.push(`${rec.streak} wins in a row`);
+    const P = ctx.parts;
+    const arcLine = isArc ? (P ? `<div class="res-score"><b>${num(P.total)}</b> points<span>Stage ${num(P.base)} · HP left ${num(P.hp)} · Time ${num(P.time)}${P.perfect ? ` · Perfect dodges ${num(P.perfect)}` : ''}${P.flawless ? ` · No damage taken ${num(P.flawless)}` : ''}</span></div>` : `<div class="res-score"><span>${info.draw ? 'A draw: this stage is played again.' : `The run ends with ${A ? num(A.score) : 0} points.`}</span></div>`) : '';
+    const buttons = isTour ? `<button class="plate primary nav" data-a="continue">${face('cross', 20)} Continue</button><button class="plate nav" data-a="menu">${face('circle', 20)} Bracket</button>`
+      : isArc ? `<button class="plate primary nav" data-a="continue">${face('cross', 20)} ${A && A.status === 'cleared' ? 'Finish the run' : info.won ? 'Next stage' : info.draw ? 'Back to the ladder' : 'See your run'}</button>`
+      : `<button class="plate primary nav" data-a="rematch">${face('cross', 20)} Rematch</button><button class="plate nav" data-a="next" data-key="triangle">${face('triangle', 20)} Next opponent</button><button class="plate nav" data-a="change" data-key="square">${face('square', 20)} Change setup</button><button class="plate nav" data-a="menu">${face('circle', 20)} Main menu</button>`;
+    const leave = () => (isTour ? this.afterTourMatch(info) : isArc ? this.afterArcadeBattle() : this.main());
     const el = this.app.setScreen(`<div class="screen results">
       <div class="res-left" style="--tc:${TYPE_COLORS[star.types[0]] || '#ffd25a'}"><div class="res-banner ${info.draw ? 'draw' : info.won ? 'win' : 'lose'}">${info.draw ? 'Draw' : info.won ? 'Victory' : 'Defeat'}</div>
         <canvas data-sprite="${star.spriteId}" data-anim="${star.meta && star.meta.anims.Pose ? 'Pose' : 'Idle'}"></canvas>
-        <div class="res-reason">${winSide ? `${winSide.trainer ? CONTENT.trainers[winSide.trainer].name + ' wins ' : star.sp.name + ' wins '}` : ''}${reason}</div></div>
-      <div class="res-right"><h2>Battle stats</h2><table class="stats"><tr><th>Pokémon</th><th>Damage</th><th>Hits</th><th>Super eff.</th><th>Perfect dodges</th><th>Ultimates</th><th>HP</th></tr>${rows.join('')}</table>
-        <div class="row" style="display:flex;gap:8px;flex-wrap:wrap">${isTour ? `<button class="plate primary nav" data-a="continue">${face('cross', 20)} Continue</button>` : `<button class="plate primary nav" data-a="rematch">${face('cross', 20)} Rematch</button><button class="plate nav" data-a="change" data-key="square">${face('square', 20)} Change setup</button>`}<button class="plate nav" data-a="menu">${face('circle', 20)} ${isTour ? 'Bracket' : 'Main menu'}</button></div>
-      </div></div>`, { back: () => (isTour ? this.afterTourMatch(info) : this.main()) });
+        <div class="res-reason">${winSide ? `${winSide.trainer ? CONTENT.trainers[winSide.trainer].name + ' wins ' : star.sp.name + ' wins '}` : ''}${reason}</div>
+        <div class="res-meta">${meta.join(' · ')}</div></div>
+      <div class="res-right"><h2>Battle stats</h2>${arcLine}<table class="stats"><tr><th>Pokémon</th><th>Damage</th><th>Hits</th><th>Super eff.</th><th>Perfect dodges</th><th>Ultimates</th><th>HP</th></tr>${rows.join('')}</table>
+        <div class="row" style="display:flex;gap:8px;flex-wrap:wrap">${buttons}</div>
+      </div></div>`, { back: leave });
     this.app.scene = null;
     this.app.audio.playMusic('Aftermath');
     // damage totals count up as the rows arrive
@@ -288,13 +353,116 @@ export class Screens {
     for (const b of el.querySelectorAll('[data-a]')) b.addEventListener('click', () => {
       const a = b.dataset.a;
       if (a === 'rematch') { setup.seed = (Math.random() * 2 ** 31) >>> 0; this.runBattle(setup, ctx); }
+      else if (a === 'next') this.nextOpponent(setup, ctx);
       else if (a === 'change') this.fighterOrTrainer(ctx.cfg);
-      else if (a === 'continue') this.afterTourMatch(info);
-      else if (isTour) this.afterTourMatch(info);
-      else this.main();
+      else leave();
     });
   }
   fighterOrTrainer(c) { this.cfg = c; c.format === 'pokemon' ? this.fighterStep(c) : this.trainerStep(c); }
+  // same side, same difficulty, a different random opponent on a random arena
+  nextOpponent(setup, ctx) {
+    const c = Object.assign({}, ctx.cfg, { opponent: 'random', map: 'random' });
+    const prev = setup.sides[1].trainer || setup.sides[1].team[0];
+    let next = this.buildSetup(c);
+    for (let n = 0; n < 12 && (next.sides[1].trainer || next.sides[1].team[0]) === prev; n++) next = this.buildSetup(c);
+    this.cfg = c; this.rememberLast(c);
+    this.runBattle(next, { kind: 'quick', cfg: c });
+  }
+  // ------------------------------------------------------------------------------------------------ arcade
+  launchArcade(c) {
+    this.cfg = c; this.rememberLast(c);
+    const A = createArcade({ env: c.env, format: c.format, fighter: c.fighter, trainer: CONTENT.trainers[c.trainer] ? c.trainer : 'ash', seed: (Math.random() * 2 ** 31) >>> 0 });
+    this.store.write('arcade', A);
+    this.arcade();
+  }
+  arcadeKey(A) { return A.env + ':' + A.format; }
+  // the ladder: six rungs, the next one lit
+  arcade() {
+    const A = this.store.read('arcade');
+    if (!A) { this.main(); return; }
+    this.app.audio.playMusic('Champion Road'); this.app.audio.stopAmbience();
+    const who = (id) => (A.format === 'pokemon' ? { name: CONTENT.species[id].name, pic: portrait(CONTENT.species[id].sprite, 44) } : { name: CONTENT.trainers[id].name, pic: `<img src="assets/trainers/${CONTENT.trainers[id].portrait}.png" alt="">` });
+    const you = who(A.format === 'pokemon' ? A.fighter : A.trainer);
+    const rungs = A.stages.map((s, i) => {
+      const w = who(s.opp), state = s.score !== null ? 'won' : s.lost ? 'lost' : i === A.index && A.status === 'active' ? 'next' : '';
+      return `<div class="rung ${state} ${s.boss ? 'boss' : ''}"><span class="rn">${s.boss ? 'Final stage' : 'Stage ' + (i + 1)}</span>${w.pic}<b>${esc(w.name)}</b><span class="rl">${s.level[0].toUpperCase() + s.level.slice(1)}</span><span class="rs">${s.score !== null ? num(s.score) : s.lost ? 'Lost' : ''}</span></div>`;
+    }).join('');
+    const lost = A.status === 'lost', cleared = A.status === 'cleared';
+    const best = (this.store.read('records').arcadeBest || {})[this.arcadeKey(A)];
+    const head = cleared ? 'Arcade cleared!' : lost ? `Run over at stage ${A.index + 1}` : `Stage ${A.index + 1} of ${A.stages.length}`;
+    const next = A.stages[A.index];
+    const el = this.app.setScreen(`<div class="screen">${this.bar('Arcade', `${ENV_INFO[A.env].name} · ${A.format === 'pokemon' ? 'Pokémon Battle' : 'Trainer Battle'} · ${esc(you.name)}`, `<h2>${esc(head)}</h2>`)}
+      <div class="ladder">${rungs}</div>
+      <div class="arc-score"><b>${num(A.score)}</b> points${best ? `<span>Best here: ${num(best.score)} points, ${plural(best.wins, 'win', 'wins')}${best.rank ? ', rank ' + best.rank : ''}</span>` : '<span>One loss ends the run. Your HP is restored between stages.</span>'}</div>
+      <div class="bottombar">${prompt([['cross', lost || cleared ? 'Finish' : 'Fight'], ['circle', 'Main menu']])}<span class="spacer"></span>
+      ${lost || cleared ? `<button class="plate primary nav" data-a="finish">${face('cross', 20)} Finish</button>` : `<button class="plate primary nav" data-a="fight">${face('cross', 20)} Battle: ${esc(who(next.opp).name)}</button><button class="plate nav" data-a="quit" data-key="triangle">${face('triangle', 20)} Abandon</button>`}</div></div>`, { back: () => this.main() });
+    const q = el.querySelector('[data-a="quit"]'), f = el.querySelector('[data-a="fight"]'), fin = el.querySelector('[data-a="finish"]');
+    if (q) q.addEventListener('click', () => { if (confirm('Abandon this arcade run? Its score still counts toward your best.')) { this.store.remove('arcade'); this.main(); } });
+    if (f) f.addEventListener('click', () => this.playArcadeMatch());
+    if (fin) fin.addEventListener('click', () => { if (cleared) this.arcadeDone(A); else { this.store.remove('arcade'); this.main(); } });
+  }
+  playArcadeMatch() {
+    const A = this.store.read('arcade');
+    if (!A || A.status !== 'active') { this.arcade(); return; }
+    const s = A.stages[A.index], pk = A.format === 'pokemon';
+    const setup = { env: A.env, format: A.format, map: s.map, seed: s.seed, title: s.boss ? 'Arcade · Final stage' : `Arcade · Stage ${A.index + 1} of ${A.stages.length}`, music: s.boss ? 'Final Battle' : null, arcade: true,
+      sides: [pk ? { team: [A.fighter], control: 'human' } : { team: CONTENT.trainers[A.trainer].teams[A.env].slice(), trainer: A.trainer, control: 'human' },
+        pk ? { team: [s.opp], control: 'cpu', level: s.level } : { team: CONTENT.trainers[s.opp].teams[A.env].slice(), trainer: s.opp, control: 'cpu', level: s.level }] };
+    this.runBattle(setup, { kind: 'arcade' });
+  }
+  // save the outcome of an arcade battle and keep the best run for this environment and format
+  finishArcadeBattle(outcome, parts) {
+    const A = this.store.read('arcade'); if (!A || A.status !== 'active') return;
+    recordArcade(A, outcome, parts);
+    this.store.write('arcade', A);
+    const rec = this.store.read('records'), key = this.arcadeKey(A), wins = arcadeWins(A);
+    rec.arcadeBest = rec.arcadeBest || {};
+    const b = rec.arcadeBest[key];
+    if (wins > 0 && (!b || A.score > b.score)) { rec.arcadeBest[key] = { score: A.score, wins, rank: arcadeRank(A.score, wins) }; this.store.write('records', rec); }
+  }
+  afterArcadeBattle() { const A = this.store.read('arcade'); if (A && A.status === 'cleared') this.arcadeDone(A); else this.arcade(); }
+  arcadeDone(A) {
+    const rank = arcadeRank(A.score, arcadeWins(A));
+    const ids = A.format === 'pokemon' ? [A.fighter] : CONTENT.trainers[A.trainer].teams[A.env];
+    const team = ids.map((id) => `<canvas data-sprite="${CONTENT.species[id].sprite}" data-anim="Pose" style="width:120px;height:110px"></canvas>`).join('');
+    const el = this.app.setScreen(`<div class="screen champion"><canvas id="confetti"></canvas>
+      <div class="cup">Rank ${rank}</div><h2>${ENV_INFO[A.env].name} Arcade cleared with ${num(A.score)} points</h2>
+      <div class="team" style="justify-content:center">${team}</div>
+      <div class="bottombar" style="justify-content:center"><button class="plate gold nav" data-a="done">${face('cross', 20)} Back to the menu</button></div></div>`, { back: () => { this.store.remove('arcade'); this.main(); } });
+    this.app.audio.playMusic('Summit');
+    this.app.audio.play('fanfare_Promotion');
+    this.rainConfetti(el.querySelector('#confetti'));
+    el.querySelector('[data-a="done"]').addEventListener('click', () => { this.store.remove('arcade'); this.main(); });
+  }
+  // pixel confetti: authored 2x3 pixel sprites falling in steps
+  rainConfetti(cv) {
+    if (this.app.settings.reducedMotion) return;
+    const x = cv.getContext('2d');
+    const dpr = Math.min(2, window.devicePixelRatio || 1); cv.width = Math.round(cv.clientWidth * dpr / 3); cv.height = Math.round(cv.clientHeight * dpr / 3);
+    const bits = Array.from({ length: 140 }, (_, i) => ({ x: Math.random() * cv.width, y: -Math.random() * cv.height, v: 0.4 + Math.random() * 0.8, k: i % 6, w: Math.random() * 6 }));
+    const tick = () => { if (!cv.isConnected) return; x.clearRect(0, 0, cv.width, cv.height); for (const b of bits) { b.y += b.v; b.x += Math.sin((b.y + b.w * 20) / 14) * 0.4; if (b.y > cv.height) b.y = -4; x.drawImage(confetti(b.k + ((b.y >> 3) & 1) * 6), Math.round(b.x), Math.round(b.y)); } requestAnimationFrame(tick); };
+    tick();
+  }
+  // ------------------------------------------------------------------------------------------------ records
+  records(back) {
+    const rec = this.store.read('records');
+    const total = rec.wins + rec.losses + rec.draws;
+    const rate = (w, l) => (w + l ? Math.round(100 * w / (w + l)) + '%' : '—');
+    const rows = Object.entries(rec.byFighter || {}).filter(([id]) => CONTENT.species[id]).sort((a, b) => b[1].w - a[1].w || a[1].l - b[1].l)
+      .map(([id, r]) => `<tr><td>${portrait(CONTENT.species[id].sprite, 20)} ${CONTENT.species[id].name}</td><td>${r.w}</td><td>${r.l}</td><td>${rate(r.w, r.l)}</td></tr>`).join('');
+    const fw = rec.fastestWin;
+    const tiles = [['Battles', total], ['Wins', rec.wins], ['Losses', rec.losses], ['Draws', rec.draws], ['Win rate', rate(rec.wins, rec.losses)], ['Best streak', rec.bestStreak || 0], ['Championships', rec.championships], ['Fastest win', fw ? clock(fw.secs) : '—']];
+    const arc = Object.entries(rec.arcadeBest || {}).filter(([k]) => ENV_INFO[k.split(':')[0]]).map(([k, b]) => { const [env, fmt] = k.split(':'); return `<tr><td>${ENV_INFO[env].name} · ${fmt === 'pokemon' ? 'Pokémon' : 'Trainer'}</td><td>${num(b.score)}</td><td>${b.wins} of ${ARCADE_LEVELS.length}</td><td>${b.rank || '—'}</td></tr>`; }).join('');
+    const el = this.app.setScreen(`<div class="screen">${this.bar('Records', fw ? `Fastest win: ${esc(fw.who)} in ${clock(fw.secs)}` : 'Everything you have won so far')}
+      <div class="records nav" tabindex="0">
+        <div class="tiles">${tiles.map(([k, v]) => `<div class="tile"><b>${v}</b><span>${k}</span></div>`).join('')}</div>
+        <div class="rec-cols">
+          <section><h3>Pokémon</h3>${rows ? `<table class="stats"><tr><th>Pokémon</th><th>Wins</th><th>Losses</th><th>Win rate</th></tr>${rows}</table>` : '<p>Win a battle to start your records.</p>'}</section>
+          <section><h3>Arcade best runs</h3>${arc ? `<table class="stats"><tr><th>Ladder</th><th>Points</th><th>Stages won</th><th>Rank</th></tr>${arc}</table>` : '<p>Finish an Arcade battle to set a best run.</p>'}</section>
+        </div>
+      </div>${prompt([['circle', 'Back']])}</div>`, { back });
+    return el;
+  }
   // ------------------------------------------------------------------------------------------------ tournament
   launchTour(c) {
     this.cfg = c; this.rememberLast(c);
@@ -363,13 +531,8 @@ export class Screens {
       <div class="bottombar" style="justify-content:center"><button class="plate gold nav" data-a="done">${face('cross', 20)} Back to the menu</button></div></div>`, { back: () => this.main() });
     this.app.audio.playMusic('Summit');
     this.app.audio.play('fanfare_Promotion');
-    // pixel confetti: authored 2x3 pixel sprites falling in steps
-    const cv = el.querySelector('#confetti'), x = cv.getContext('2d');
-    const dpr = Math.min(2, window.devicePixelRatio || 1); cv.width = Math.round(cv.clientWidth * dpr / 3); cv.height = Math.round(cv.clientHeight * dpr / 3);
-    const bits = Array.from({ length: 140 }, (_, i) => ({ x: Math.random() * cv.width, y: -Math.random() * cv.height, v: 0.4 + Math.random() * 0.8, k: i % 6, w: Math.random() * 6 }));
-    const tick = () => { if (!cv.isConnected) return; x.clearRect(0, 0, cv.width, cv.height); for (const b of bits) { b.y += b.v; b.x += Math.sin((b.y + b.w * 20) / 14) * 0.4; if (b.y > cv.height) b.y = -4; x.drawImage(confetti(b.k + ((b.y >> 3) & 1) * 6), Math.round(b.x), Math.round(b.y)); } requestAnimationFrame(tick); };
+    this.rainConfetti(el.querySelector('#confetti'));
     el.querySelector('[data-a="done"]').addEventListener('click', () => { this.store.remove('tournament'); this.main(); });
-    tick();
   }
   // ------------------------------------------------------------------------------------------------ settings
   settings(back) {
@@ -383,6 +546,8 @@ export class Screens {
         <div class="field"><span>Touch button size</span><span class="seg">${[0.85, 1, 1.15].map((v) => `<button class="nav ${s.touchSize === v ? 'on' : ''}" data-size="${v}">${v === 0.85 ? 'Small' : v === 1 ? 'Medium' : 'Large'}</button>`).join('')}</span></div>
         ${rng('touchOpacity', 'Touch button opacity', 0.3, 1, 0.05)}
         ${tog('pixelBars', 'Pixel HP bars over fighters')}${tog('hitboxes', 'Hitbox overlay')}
+        <div class="field"><span>Cinematics</span><span class="seg">${[['full', 'Full'], ['light', 'Light'], ['off', 'Off']].map(([v, l]) => `<button class="nav ${(s.cinematics || 'full') === v ? 'on' : ''}" data-cine="${v}">${l}</button>`).join('')}</span></div>
+        ${tog('skipIntros', 'Skip the intro before each battle')}
         ${tog('devOverlay', 'Developer overlay')}${tog('reducedMotion', 'Reduce motion and flashes')}
         <div class="field" style="grid-column:1/-1;flex-direction:column;align-items:stretch"><span>Export save — copy this code somewhere safe (iOS can clear app storage)</span><textarea class="code" readonly id="exp"></textarea><span class="row" style="display:flex;gap:8px"><button class="plate nav" data-a="copy">Copy code</button></span></div>
         <div class="field" style="grid-column:1/-1;flex-direction:column;align-items:stretch"><span>Import save — paste a code, then import</span><textarea class="code" id="imp" placeholder="ARENA1-…"></textarea><span class="row" style="display:flex;gap:8px"><button class="plate nav" data-a="import">Import save</button><button class="plate nav" data-a="reset">Reset all data</button></span></div>
@@ -391,9 +556,10 @@ export class Screens {
     for (const t of el.querySelectorAll('[data-tog]')) t.addEventListener('click', () => { const k = t.dataset.tog; s[k] = !s[k]; t.querySelector('.toggle').classList.toggle('on', s[k]); this.app.saveSettings(); this.app.audio.play('menu_Toggle'); });
     for (const r of el.querySelectorAll('[data-rng]')) r.addEventListener('input', () => { s[r.dataset.rng] = +r.value; this.app.saveSettings(); });
     for (const b of el.querySelectorAll('[data-size]')) b.addEventListener('click', () => { s.touchSize = +b.dataset.size; for (const o of el.querySelectorAll('[data-size]')) o.classList.toggle('on', o === b); this.app.saveSettings(); });
+    for (const b of el.querySelectorAll('[data-cine]')) b.addEventListener('click', () => { s.cinematics = b.dataset.cine; for (const o of el.querySelectorAll('[data-cine]')) o.classList.toggle('on', o === b); this.app.saveSettings(); });
     el.querySelector('[data-a="copy"]').addEventListener('click', async () => { const ta = el.querySelector('#exp'); ta.select(); try { await navigator.clipboard.writeText(ta.value); this.app.toast('Save code copied'); } catch (e) { document.execCommand && document.execCommand('copy'); this.app.toast('Select the code and copy it'); } });
     el.querySelector('[data-a="import"]').addEventListener('click', () => { try { this.store.importCode(el.querySelector('#imp').value); this.app.settings = this.store.read('settings'); this.app.applySettings(); this.app.toast('Save imported'); this.settings(back); } catch (e) { this.app.toast(e.message); } });
-    el.querySelector('[data-a="reset"]').addEventListener('click', () => { if (confirm('Erase settings, records and tournament progress?')) { this.store.resetAll(); this.app.settings = this.store.read('settings'); this.app.applySettings(); this.app.toast('All data reset'); this.settings(back); } });
+    el.querySelector('[data-a="reset"]').addEventListener('click', () => { if (confirm('Erase settings, records, and tournament and arcade progress?')) { this.store.resetAll(); this.app.settings = this.store.read('settings'); this.app.applySettings(); this.app.toast('All data reset'); this.settings(back); } });
   }
   // ------------------------------------------------------------------------------------------------ controls guide
   controls(back) {
@@ -437,6 +603,8 @@ export class Screens {
     d.innerHTML = `<div class="panel" role="dialog" aria-label="Paused"><h2>Paused</h2>
       <button class="menu-btn nav" data-a="resume">${face('cross', 20)} Resume</button>
       ${o.noRestart ? '' : `<button class="menu-btn nav" data-a="restart">Restart</button>`}
+      ${(o.extra || []).map((x, i) => `<button class="menu-btn nav" data-x="${i}">${esc(x.label)}</button>`).join('')}
+      ${o.fighterId && CONTENT.species[o.fighterId] ? `<button class="menu-btn nav" data-a="moves">Moves</button>` : ''}
       <button class="menu-btn nav" data-a="settings">Settings</button>
       <button class="menu-btn nav" data-a="controls">Controls</button>
       <button class="menu-btn nav" data-a="rules">Rules</button>
@@ -447,6 +615,21 @@ export class Screens {
     const rs = d.querySelector('[data-a="restart"]'); if (rs) rs.addEventListener('click', () => { app.closeMenu(); o.onRestart(); });
     d.querySelector('[data-a="quit"]').addEventListener('click', () => { if (o.quitConfirm && !confirm(o.quitConfirm)) return; app.closeMenu(); o.onQuit(); });
     d.querySelector('[data-a="rules"]').addEventListener('click', () => { panel.innerHTML = `<h2>Rules</h2><p>${o.rule}</p><p>If HP percentages are tied at the end, 20 seconds of sudden death follow: the next hit wins. If no one lands a hit, it's a draw.</p><p>In the last 30 seconds, Double Stamina: stamina regenerates twice as fast.</p><button class="menu-btn nav" data-a="back">${face('circle', 20)} Back</button>`; panel.querySelector('[data-a="back"]').addEventListener('click', () => { app.closeMenu(); app.menu('pause', o); }); app.focus(panel.querySelector('.nav')); app.backFn = () => { app.closeMenu(); app.menu('pause', o); }; });
+    for (const b of d.querySelectorAll('[data-x]')) b.addEventListener('click', () => { app.closeMenu(); o.extra[+b.dataset.x].run(); });
+    // what the Pokémon on the field can do: its four moves, its Ultimate and its R ability
+    const mv = d.querySelector('[data-a="moves"]');
+    if (mv) mv.addEventListener('click', () => {
+      const s = CONTENT.species[o.fighterId], again = () => { app.closeMenu(); app.menu('pause', o); };
+      const rows = s.kit.map((mid, i) => { const m = CONTENT.moves[mid]; return `<div class="mv">${face(SLOT_BUTTON[i], 20)}<div><b style="color:${TYPE_COLORS[m.type]}">${m.name}</b> <em>${m.type} · ${m.tier === 'sig' ? 'Signature · ' : ''}${m.cost} stamina${m.cd ? ` · ${(m.cd / 60).toFixed(1)} s cooldown` : ''}</em><br><em>${esc(m.desc || '')}</em></div></div>`; }).join('');
+      const ult = CONTENT.moves[o.megaUsed && s.mega && s.mega.ult ? s.mega.ult : s.ult];
+      panel.classList.add('wide');
+      panel.innerHTML = `<h2>${s.name}'s moves</h2><div class="moves pm">${rows}</div>
+        <p>${shoulder('L', 16)} Ultimate: ${s.mega && !o.megaUsed ? `${s.mega.primal ? 'Primal Reversion' : 'Mega Evolves'} into ${s.mega.name}, then ` : ''}${esc(ult ? ult.name : '')}</p>
+        ${s.trav ? `<p>${shoulder('R', 16)} ${TRAV_LABEL[s.trav] || ''}: ${esc(TRAV_TEXT[s.trav] || '')}</p>` : `<p>${shoulder('R', 16)} Dodge: costs 12 stamina. Dodge just before a hit for a perfect dodge.</p>`}
+        <button class="menu-btn nav" data-a="back">${face('circle', 20)} Back</button>`;
+      panel.querySelector('[data-a="back"]').addEventListener('click', again);
+      app.focus(panel.querySelector('.nav')); app.backFn = again;
+    });
     const sub = (fn) => () => {
       const holder = document.createElement('div'); holder.className = 'menu-layer sub-layer'; holder.style.background = '#0b0918';
       app.overlaysEl.appendChild(holder);

@@ -2,16 +2,17 @@
 // migrations, recovery from corruption, and a copyable export/import code (iOS can clear storage).
 const NS = 'mikearena.';
 const OLD_NS = 'arena.';      // the original Arena on the same origin: its saves are copied over once, then left alone
-export const SCHEMA = { settings: 2, records: 1, tournament: 1, last: 1 };
+export const SCHEMA = { settings: 3, records: 1, tournament: 1, last: 1, arcade: 1 };
 export const DEFAULTS = {
-  settings: { v: 2, music: 0.7, sfx: 0.85, lowHpBeep: true, touchSize: 1, touchOpacity: 0.85, leftHanded: false, pixelBars: false, hitboxes: false, devOverlay: false, reducedMotion: false },
-  records: { v: 1, wins: 0, losses: 0, draws: 0, byFighter: {}, championships: 0, played: 0 },
+  settings: { v: 3, music: 0.7, sfx: 0.85, lowHpBeep: true, touchSize: 1, touchOpacity: 0.85, leftHanded: false, pixelBars: false, hitboxes: false, devOverlay: false, reducedMotion: false, cinematics: 'full', skipIntros: false },
+  records: { v: 1, wins: 0, losses: 0, draws: 0, byFighter: {}, championships: 0, played: 0, streak: 0, bestStreak: 0, fastestWin: null, arcadeBest: {} },
   tournament: null,
+  arcade: null,
   last: { v: 1, env: 'ground', format: 'pokemon', fighter: 'charizard', trainer: 'ash', opponent: 'random', map: 'random', level: 'normal', size: 8 },
 };
 const MIGRATE = {
-  settings: { 1: (s) => Object.assign({}, DEFAULTS.settings, s, { v: 2 }) },
-  records: {}, tournament: {}, last: {},
+  settings: { 1: (s) => Object.assign({}, DEFAULTS.settings, s, { v: 2 }), 2: (s) => Object.assign({}, DEFAULTS.settings, s, { v: 3 }) },
+  records: {}, tournament: {}, last: {}, arcade: {},
 };
 
 function ls() { try { return window.localStorage; } catch (e) { return null; } }
@@ -43,7 +44,7 @@ export class Store {
     const want = SCHEMA[key];
     let v = val.v || 1, guard = 0;
     while (v < want && MIGRATE[key][v] && guard++ < 20) { val = MIGRATE[key][v](val); v = val.v || v + 1; }
-    if (key !== 'tournament' && DEFAULTS[key]) val = Object.assign({}, DEFAULTS[key], val);
+    if (key !== 'tournament' && key !== 'arcade' && DEFAULTS[key]) val = Object.assign({}, DEFAULTS[key], val);
     return val;
   }
   read(key) {

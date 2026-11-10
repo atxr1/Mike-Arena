@@ -7,6 +7,8 @@ import { blankInput } from './fighter.js';
 export const LEVELS = {
   easy: { react: 24, think: 18, aimErr: 0.22, dodge: 0.3, perfect: 0.1, aggro: 0.45, reserve: 0, ultDelay: 240, switchQ: 0.3, decoyFool: 0.75, holdFire: 0.45 },
   normal: { react: 14, think: 10, aimErr: 0.08, dodge: 0.58, perfect: 0.35, aggro: 0.68, reserve: 12, ultDelay: 60, switchQ: 0.65, decoyFool: 0.5, holdFire: 0.2 },
+  // training partner: stands still and never attacks (not offered on the difficulty screen)
+  dummy: { react: 99, think: 99, aimErr: 0, dodge: 0, perfect: 0, aggro: 0, reserve: 0, ultDelay: 99999, switchQ: 0, decoyFool: 0, holdFire: 1 },
   hard: { react: 8, think: 6, aimErr: 0.02, dodge: 0.86, perfect: 0.7, aggro: 0.82, reserve: 14, ultDelay: 0, switchQ: 0.92, decoyFool: 0.25, holdFire: 0.05 },
 };
 
@@ -43,6 +45,7 @@ export class AI {
     // a happy emote after winning
     if (S.phase === 'ko' && S.koFinal && S.result && S.result.winner === this.side && !this.wonEmote && S.phaseT > 40 && f.onField) { this.wonEmote = true; inp.emote = 3; return inp; }
     if (S.phase !== 'fight' || !f.onField || f.state === 'enter') return inp;
+    if (this.level === 'dummy') return inp;
     const o = f.foe; if (!o || !o.onField) return inp;
     const L = this.L;
     inp.aimErr = L.aimErr * (o.hidden() ? 3 : 1);

@@ -220,15 +220,15 @@ export class HUD {
   timer(c, S, cx, y) {
     const secs = Math.ceil(S.timeLeft / 60);
     const mm = Math.floor(secs / 60), ss = secs % 60;
-    const txt = S.format === 'trainer' ? `${mm}:${String(ss).padStart(2, '0')}` : String(secs);
+    const txt = S.rules.training ? 'Training' : S.format === 'trainer' ? `${mm}:${String(ss).padStart(2, '0')}` : String(secs);
     const ot = S.overtime || S.sudden;
-    const w = ot ? 128 : 66, h = 34;
+    const w = ot ? 128 : S.rules.training ? 92 : 66, h = 34;
     c.save();
     c.beginPath(); c.moveTo(cx - w / 2 - 8, y); c.lineTo(cx + w / 2 + 8, y); c.lineTo(cx + w / 2, y + h); c.lineTo(cx - w / 2, y + h); c.closePath();
     const gr = ot ? grad(c, 0, y, 0, y + h, [0, S.sudden ? '#b0202c' : '#ff9a3c'], [1, S.sudden ? '#5a0a14' : '#b8461a']) : grad(c, 0, y, 0, y + h, [0, '#3a2f6e'], [1, '#17122e']);
     c.fillStyle = gr; c.fill(); c.lineWidth = 1.5; c.strokeStyle = ot ? '#ffe0a0' : '#8a7ad8'; c.stroke();
     c.textAlign = 'center'; c.fillStyle = COL.cream;
-    c.font = `italic 800 ${ot ? 15 : 24}px ${F_COND}`;
+    c.font = `italic 800 ${ot ? 15 : S.rules.training ? 17 : 24}px ${F_COND}`;
     if (ot) { c.fillText(txt, cx, y + 15); c.font = `italic 800 10px ${F_COND}`; c.fillStyle = (this.t >> 4) % 2 ? '#fff' : COL.gold; c.fillText(S.sudden ? 'SUDDEN DEATH' : 'DOUBLE STAMINA', cx, y + 28); }
     else c.fillText(txt, cx, y + 25);
     c.restore();

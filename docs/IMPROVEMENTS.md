@@ -1,5 +1,9 @@
 # Improvement backlog — instructions for the next session
 
+> **Status: all seven tasks shipped in Mike Arena 1.1.0 (2026-11-09).** Arcade also gained scoring, ranks and a
+> Trainer Battle ladder. This file is kept as the record of what was asked; the rules section still applies to any
+> future work.
+
 Seven improvements to Mike Arena, written so that each one can be done on its own, in order, without knowing the
 history of the project. Written against Mike Arena 1.0.0 (source on the `src` branch of `atxr1/Mike-Arena`).
 

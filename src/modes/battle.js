@@ -47,8 +47,11 @@ export class BattleScene {
     this.app = app; this.setup = setup; this.hooks = hooks;
     this.me = setup.sides.findIndex((s) => s.control === 'human'); if (this.me < 0) this.me = 0;
     this.state = 'loading'; this.acc = 0; this.paused = false; this.done = false;
+    // Settings → Cinematics: Light is the reduced treatment, Off removes the camera work, freezes and overlays
+    const cine = app.settings.cinematics || 'full';
+    this.cineOff = cine === 'off'; this.cineReduced = !!app.settings.reducedMotion || cine === 'light';
     this.fx = new FX(app.gfx, { reduced: app.settings.reducedMotion }); this.world = new World(app.gfx, this.fx); this.hud = new HUD(app.gfx);
-    this.dir = new Director(app, { reduced: app.settings.reducedMotion }); this.frameDt = 1;
+    this.dir = new Director(app, { reduced: this.cineReduced }); this.dir.off = this.cineOff; this.frameDt = 1;
     this.world.focusSide = this.me;
     this.touch = new TouchControls(app.layer, app.input);
     this.emoteMode = false; this.koFinalTick = -1; this.overAt = -1; this.choosing = false;
@@ -76,7 +79,7 @@ export class BattleScene {
   }
   begin() {
     const s = this.setup;
-    this.match = new Match({ seed: s.seed >>> 0, env: s.env, format: s.format, map: s.map, sides: s.sides.map((x) => ({ team: x.team, trainer: x.trainer || null, control: x.control, level: x.level })) });
+    this.match = new Match({ seed: s.seed >>> 0, env: s.env, format: s.format, map: s.map, sides: s.sides.map((x) => ({ team: x.team, trainer: x.trainer || null, control: x.control, level: x.level })), ...(s.rules ? { rules: s.rules } : {}) });
     this.S = this.match.sim;
     this.touch.mount({ leftHanded: this.app.settings.leftHanded, size: this.app.settings.touchSize, opacity: this.app.settings.touchOpacity });
     this.touch.onPause = () => this.pause();
@@ -89,6 +92,8 @@ export class BattleScene {
     const map = CONTENT.maps[s.map];
     this.app.audio.playMusic(s.music || map.music);
     this.app.audio.ambience(map.ambience, s.env);
+    // Settings → Skip the intro, and Cinematics Off after the VS card: straight to the send-outs
+    if (this.app.settings.skipIntros) { this.state = 'establish'; this.finishEstablish(); return; }
     this.state = 'intro';
     this.showIntro();
   }
@@ -117,7 +122,9 @@ export class BattleScene {
       if (this.state !== 'intro') return;
       clearTimeout(this.introTimer);
       ov.classList.add('out'); setTimeout(() => ov.remove(), 400);
-      this.state = 'establish'; this.dir.startIntro(this.S, this.setup);
+      this.state = 'establish';
+      if (this.cineOff) { this.finishEstablish(); return; }
+      this.dir.startIntro(this.S, this.setup);
       this.app.audio.play('zz_whoosh', { vol: 0.6 });
     };
     ov.addEventListener('pointerdown', finish);
@@ -155,6 +162,7 @@ export class BattleScene {
     if (this.state === 'potm') { this.potmFrame(dt); return; }
     const S = this.S;
     this.dir.frame(this.frameDt, S);
+    if (this.cineOff) this.dir.hold = 0;      // no freezes with cinematics off
     // presses are latched until a simulated tick consumes them (frames without a sim step never drop input)
     for (const n of input.pressed) this.latched.add(n);
     // skip the faint sequence / Mega sequence with a tap or ✕
@@ -182,7 +190,7 @@ export class BattleScene {
     }
     if (!this.fightCalled && S.phase === 'fight' && S.fighters().every((f) => !f.onField || f.state !== 'enter')) { this.fightCalled = true; this.dir.fight(); this.app.audio.play('zz_go'); this.app.audio.play('zz_stamp', { vol: 0.5 }); }
     // controls fade out while a cut-in holds the action, before Fight! and once the match is decided — never while you can act
-    this.touch.cine && this.touch.cine(this.dir.hold > 0 || !this.fightCalled || !!S.result);
+    this.touch.cine && this.touch.cine(this.cineOff ? !!S.result : this.dir.hold > 0 || !this.fightCalled || !!S.result);
     if (this.overAt >= 0 && S.tick - this.overAt > 20 && this.state === 'fight') { this.endMatch(); if (this.state === 'results') return; }
     this.render();
     this.frameMs.push(performance.now() - t0); if (this.frameMs.length > 120) this.frameMs.shift();
@@ -324,11 +332,19 @@ export class BattleScene {
     this.app.audio.duck(0.35, 99999);
     const S = this.S;
     const rule = S.format === 'trainer' ? 'Trainer Battle: 4-minute clock. A side wins when the other has no Pokémon left. At time-out, the higher total HP percentage wins.' : 'Pokémon Battle: 99-second clock. At time-out, the higher HP percentage wins.';
-    const tour = !!this.setup.tour;
+    const tour = !!this.setup.tour, arcade = !!this.setup.arcade, training = !!this.setup.training;
+    const mine = S.activeOf(this.me), common = { fighterId: mine ? mine.id : null, megaUsed: !!(mine && mine.form === 'mega') };
     // paused after the result is in (app sent to the background, phone turned upright): leaving goes to the results,
     // so a won match can't be thrown away or forfeited
-    if (this.decided()) { this.app.menu('pause', { rule, noRestart: true, quitLabel: 'Skip to results', quitConfirm: null, onResume: () => this.resume(), onQuit: () => { this.resume(true); this.toResults(); } }); return; }
-    this.app.menu('pause', { rule, noRestart: tour, quitLabel: tour ? 'Forfeit match' : 'Quit', quitConfirm: tour ? 'Forfeit this tournament match? It counts as a loss.' : null, onResume: () => this.resume(), onRestart: () => { this.resume(true); this.hooks.restart && this.hooks.restart(); }, onQuit: () => { this.resume(true); this.quit(); } });
+    if (this.decided()) { this.app.menu('pause', { ...common, rule, noRestart: true, quitLabel: 'Skip to results', quitConfirm: null, onResume: () => this.resume(), onQuit: () => { this.resume(true); this.toResults(); } }); return; }
+    if (training) {
+      const still = this.setup.sides[1 - this.me].level === 'dummy';
+      this.app.menu('pause', { ...common, rule: 'Training: no clock and no knockouts. HP refills after 3 seconds without taking damage. Nothing here counts toward your records.', quitLabel: 'Leave training', quitConfirm: null,
+        extra: [{ label: still ? 'Make the opponent fight back' : 'Make the opponent stand still', run: () => { this.resume(true); this.hooks.setLevel && this.hooks.setLevel(still ? 'normal' : 'dummy'); } }],
+        onResume: () => this.resume(), onRestart: () => { this.resume(true); this.hooks.restart && this.hooks.restart(); }, onQuit: () => { this.resume(true); this.quit(); } });
+      return;
+    }
+    this.app.menu('pause', { ...common, rule, noRestart: tour || arcade, quitLabel: tour ? 'Forfeit match' : arcade ? 'Forfeit run' : 'Quit', quitConfirm: tour ? 'Forfeit this tournament match? It counts as a loss.' : arcade ? 'Forfeit this battle? Your arcade run ends here.' : null, onResume: () => this.resume(), onRestart: () => { this.resume(true); this.hooks.restart && this.hooks.restart(); }, onQuit: () => { this.resume(true); this.quit(); } });
   }
   decided() { return this.state === 'potm' || this.state === 'ending' || !!(this.S && this.S.result); }
   toResults() {
@@ -367,7 +383,7 @@ export class BattleScene {
     this.potmReplay.fastForward(from);
     this.potmFx = new FX(this.app.gfx, { reduced: this.app.settings.reducedMotion }); this.potmWorld = new World(this.app.gfx, this.potmFx); this.potmWorld.setMap(CONTENT.maps[this.setup.map], this.mapImg, this.cheerImg); this.potmWorld.focusSide = this.me;
     this.potmHud = new HUD(this.app.gfx); this.potmHud.potm = true;
-    this.potmDir = new Director(this.app, { reduced: this.app.settings.reducedMotion, replay: true });
+    this.potmDir = new Director(this.app, { reduced: this.cineReduced, replay: true }); this.potmDir.off = this.cineOff;
     this.potmEnd = this.koFinalTick + 70; this.potmAcc = 0;
     // determinism check: replay to the final knockout and compare with the live match; never show a wrong replay
     const probe = new Replay(this.match.log); probe.fastForward(this.koFinalTick);
@@ -382,6 +398,7 @@ export class BattleScene {
     const ts = this.app.test ? this.app.test.speed : 1;
     this.frameDt = Math.min(dt, 100) / STEP * ts;
     D.frame(this.frameDt * 0.5, S);
+    if (this.cineOff) D.hold = 0;
     if (D.hold > 0) this.potmAcc = 0; else this.potmAcc += Math.min(dt, 100) * 0.5 * ts;      // slow motion
     while (this.potmAcc >= STEP && D.hold <= 0) {
       this.potmAcc -= STEP;

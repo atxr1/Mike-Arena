@@ -20,8 +20,9 @@ let rs = SEED >>> 0;
 const rnd = () => { rs = (rs * 1664525 + 1013904223) >>> 0; return rs / 4294967296; };
 const pick = (a) => a[Math.floor(rnd() * a.length)];
 
-function runOne(env, format, seed, a, b, map) {
-  const opts = { seed, env, format, map, sides: [{ team: a, control: 'cpu', level: LEVEL }, { team: b, control: 'cpu', level: LEVEL }] };
+function runOne(env, format, seed, a, b, map, tr) {
+  // trainer ids are passed so the per-team balance (src/content/teambalance.js) applies, as in the game
+  const opts = { seed, env, format, map, sides: [{ team: a, trainer: tr ? tr[0] : null, control: 'cpu', level: LEVEL }, { team: b, trainer: tr ? tr[1] : null, control: 'cpu', level: LEVEL }] };
   const m = new Match(opts);
   const S = m.sim;
   let t = 0;
@@ -53,7 +54,7 @@ for (const env of envs) {
       }
       const map = pick(MAPS_BY_ENV[env]);
       try {
-        const res = runOne(env, format, (SEED * 1000 + r) >>> 0, a, b, map);
+        const res = runOne(env, format, (SEED * 1000 + r) >>> 0, a, b, map, names && names.map((x) => x.slice(2)));
         totalMs += res.ms; totalTicks += res.steps;
         if (res.stalled) { report.stalls++; report.errors.push({ key, r, a, b, map, err: 'stalled', phase: res.S.phase }); continue; }
         const w = res.S.result.winner;

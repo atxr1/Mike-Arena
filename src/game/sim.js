@@ -21,7 +21,8 @@ export class Sim {
     this.env = opts.env; this.format = opts.format;   // 'pokemon' | 'trainer'
     this.map = CONTENT.maps[opts.map];
     if (!this.map) throw new Error('unknown map ' + opts.map);
-    this.rules = Object.assign({ noUlt: false }, opts.rules || {});
+    // rules.training: no clock, nobody can be knocked out, and HP refills after 3 s without taking damage
+    this.rules = Object.assign({ noUlt: false, training: false }, opts.rules || {});
     this.bounds = Object.assign({}, this.map.play);
     this.obstacles = (this.env === 'ground' ? this.map.obstacles || [] : []).map((o) => Object.assign({}, o));
     this.tick = 0; this.fightTicks = 0; this.freeze = 0; this.slowmo = 0;
@@ -219,6 +220,7 @@ export class Sim {
   }
 
   updateClock() {
+    if (this.rules.training) { this.trainingRegen(); return; }
     if (this.timeLeft > 0) this.timeLeft--;
     if (!this.overtime && this.timeLeft <= MATCH.overtimeAt && !this.sudden) { this.overtime = true; this.ev({ e: 'overtime' }); }
     if (this.timeLeft <= 0) {
@@ -236,8 +238,17 @@ export class Sim {
     this.ev({ e: reason === 'time' ? 'timeup' : reason === 'draw' ? 'draw' : 'final', result: this.result });
   }
 
+  // training: a quiet refill once a fighter has gone 3 s without losing HP
+  trainingRegen() {
+    for (const f of this.fighters()) {
+      if (f.trainHp === undefined || f.hp < f.trainHp) f.trainAt = this.tick;
+      if (this.tick - f.trainAt > 180 && f.hp < f.maxHp) f.hp = Math.min(f.maxHp, f.hp + Math.ceil(f.maxHp / 90));
+      f.trainHp = f.hp;
+    }
+  }
   knockOut(f) {
     if (f.state === 'faint') return;
+    if (this.rules.training) { f.hp = f.maxHp; f.trainHp = f.hp; this.ev({ e: 'trainReset', f }); return; }
     const sd = this.sides[f.side];
     if (f.move) this.endMove(f);
     if (f.state === 'trav' && f.T && f.T.interrupt) f.T.interrupt(f);

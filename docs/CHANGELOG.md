@@ -1,5 +1,43 @@
 # Changelog
 
+## Mike Arena 1.1.0 — 2026-11-09 — Arcade, Training and Records
+
+One large addition, three medium ones and ten small ones. Pokémon Battles play exactly as in 1.0.0; Trainer Battles
+change only through the new team balance.
+
+**Large**
+- **Arcade mode.** Pick an environment and a Pokémon or a trainer, then fight six battles in a row: two on Easy, two
+  on Normal, two on Hard, the last against a Legendary (or the Champion, in Trainer Battles). HP is restored between
+  stages and one loss ends the run. Every stage is scored (difficulty, HP left, time left, perfect dodges, a bonus
+  for taking no damage), a cleared run gets a rank from C to S, and the best run per environment and format is kept.
+  The run is saved before and after every battle, so it can be closed and resumed from the main menu.
+
+**Medium**
+- **Training mode.** No clock and no knockouts; HP refills after 3 seconds without taking damage. The opponent
+  stands still until you ask it to fight back from the pause menu. Nothing in Training counts toward the records.
+- **Records screen.** Battles, wins, losses, draws, win rate, best winning streak, championships, fastest win, a
+  table of every Pokémon you have used, and your best Arcade runs.
+- **Fair trainer teams.** Every trainer's team now has its own HP and damage multiplier per environment
+  (`src/content/teambalance.js`, written by `tools/tune_teams.mjs`). CPU-vs-CPU team win rates went from 20–87 % to
+  41–58 % (200 battles per team per environment; a second, smaller sample gave 39–62 %). Multipliers stay between 0.85 and 1.18.
+
+**Small**
+- **Move list in the pause menu:** the four moves of the Pokémon on the field, their cost and cooldown, its Ultimate
+  and what R does.
+- **Cinematics setting:** Full, Light (shorter freezes, no inverted flash frames) or Off (no camera work, freezes,
+  black bars or cut-ins).
+- **Skip the intro before each battle** setting: straight from the loading screen to the send-outs.
+- **Next opponent** on the results screen: same side and difficulty, a different random opponent and arena.
+- **Surprise battle** on the main menu: a random Pokémon, opponent, arena and environment in one tap.
+- **Random pick for your own side** on the fighter and trainer select screens.
+- **Winning streak** on the main menu and the results screen.
+- **Your record with each Pokémon** on the fighter select screen.
+- **Battle time** on the results screen, with a note when it is your fastest win.
+- **Loading tips about your Pokémon:** half the time the tip explains its R ability; four new general tips.
+
+Also: the main menu groups Training, Surprise battle, Records, Settings, Controls and Credits into two compact rows;
+the pause menu is more compact so every entry fits an iPhone screen; settings save version 3 (older saves migrate).
+
 ## Mike Arena 1.0.0 — 2026-10-14 — cinematic edition
 
 Built from Arena 1.0.1 (kept unchanged at https://atxr1.github.io/Polish.-/). The simulation, content and balance

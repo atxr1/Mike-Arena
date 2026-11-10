@@ -1,5 +1,6 @@
 // Fighter: one Pokémon on the field. Pure simulation (no DOM).
 import { BALANCE } from '../content/balance.js';
+import { TEAM_BALANCE } from '../content/teambalance.js';
 import { clamp, lerp, angDiff, dirFromAngle } from '../core/util.js';
 import { CONTENT, resolveAnim, frameIndexAt } from './content.js';
 import { startMove, updateMove, TIER } from './mechanics.js';
@@ -63,7 +64,10 @@ export class Fighter {
     const hpBefore = this.maxHp, frac = hpBefore ? this.hp / hpBefore : 1;
     const bal = BALANCE[this.env + ':' + sp.id];
     this.bal = bal || null;
-    this.maxHp = Math.round((260 + sp.base.hp * 1.3) * (sp.tune.hp || 1) * (bal ? bal.hp : 1) * (fo && fo.hpMul || 1) * (form === 'mega' ? 1.06 : 1));
+    // Trainer Battles: the whole team shares one more multiplier, so every trainer is a fair pick
+    const tsd = this.sim.format === 'trainer' && this.sim.opts.sides[this.side];
+    this.teamBal = (tsd && tsd.trainer && TEAM_BALANCE[this.env + ':' + tsd.trainer]) || null;
+    this.maxHp = Math.round((260 + sp.base.hp * 1.3) * (sp.tune.hp || 1) * (bal ? bal.hp : 1) * (this.teamBal ? this.teamBal.hp : 1) * (fo && fo.hpMul || 1) * (form === 'mega' ? 1.06 : 1));
     if (hpBefore) this.hp = Math.max(1, Math.round(this.maxHp * frac));
     this.speedBase = (1.3 + base.spe * 0.0072) * (sp.speedMul || 1) * (fo && fo.speedMul || 1);
     this.r = sp.radius;
@@ -81,7 +85,7 @@ export class Fighter {
     if ((name === 'atk' || name === 'spa') && this.flags.intimidated) v *= 0.9;
     return v;
   }
-  dmgMul() { return (this.sp.tune.dmg || 1) * (this.bal ? this.bal.dmg : 1) * (this.fo && this.fo.dmgMul || 1) * (this.form === 'mega' ? 1.08 : 1); }
+  dmgMul() { return (this.sp.tune.dmg || 1) * (this.bal ? this.bal.dmg : 1) * (this.teamBal ? this.teamBal.dmg : 1) * (this.fo && this.fo.dmgMul || 1) * (this.form === 'mega' ? 1.08 : 1); }
   armor() { let a = 1; if (this.T && this.T.armor) a *= this.T.armor(this); return a; }
   kbTaken() { return this.T && this.T.kbTaken ? this.T.kbTaken(this) : 1; }
   actSpeed() { return this.T && this.T.actSpeed ? this.T.actSpeed(this) : 1; }

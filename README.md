@@ -36,6 +36,7 @@ The user-provided inputs (PSP build files, map paintings) live in `inputs/`.
 | `node tests/e2e.mjs` | Playwright at 844×390 and 932×430 with touch: every screen, all 12 mode combinations, touch, switching, pause, skips, tournament + reload + championship, save export/import, corrupt-save recovery |
 | `node tests/cine.mjs [env fighter foe map]` | full-screen shots of a real match: VS card, establishing shot, Fight!, framing, Ultimate cut-in, K.O., victory, Play of the Match, results (`shots/cine/`) |
 | `node tests/cine_trainer.mjs` | Trainer Battle: knockout, replacement send-out with the trainer's call |
+| `node tests/v11.mjs` | Arcade (full run, reload and resume, scoring, rank), Training, Records, pause-menu move list, Cinematics setting, Surprise battle, Next opponent (`shots/v11/`) |
 | `node tests/menus.mjs` | title, main menu (with the screen wipe), fighter and trainer select, loading card, VS card |
 | `node tests/soak.mjs 10` | 10-minute soak: frame time, heap and particle growth |
 | `bun tools/sizes.mjs` | first-load and worst-case per-match download sizes |

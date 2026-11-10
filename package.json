@@ -1,6 +1,6 @@
 {
   "name": "mike-arena",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "description": "Mike Arena \u2014 the cinematic edition of the Pok\u00e9mon arena fighter (iPhone Home Screen web app).",
   "type": "module",

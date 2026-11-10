@@ -26,6 +26,19 @@ Why things are the way they are. Newest first within each section.
   service worker caches under `mikearena-…`, the Home Screen name is Mike Arena. Save codes stay `ARENA1-…`, so a code
   from either game imports into the other.
 
+## Modes added in 1.1
+- **Arcade is a list, not a bracket.** Opponents, arenas and seeds are drawn once from the run's seed, so a resumed
+  run is the same run. HP is restored between stages: carrying damage over made the Hard stages a coin flip.
+  A draw replays the stage; quitting a battle forfeits the run. The best run is updated after every battle, so an
+  abandoned run still counts.
+- **Training is one sim rule** (`rules.training`): the clock branch refills HP instead of counting down, and a
+  knockout refills instead of fainting. It is off by default, so recorded matches replay exactly as before. The
+  standing opponent is a CPU level (`dummy`) that returns no input; it is not offered on the difficulty screen.
+- **Trainer teams get a team multiplier rather than new teams.** The teams are canon picks; changing them to fix
+  balance would lose that. The multiplier is split evenly between HP and damage and kept within 0.8–1.25.
+- **Cinematics Off** switches off drawing (`dir.off`), the holds, the establishing shot and the control fade.
+  It is separate from "Reduce motion and flashes", which also calms the menus.
+
 ## Simulation and determinism
 - **Fixed 60 Hz simulation, seeded mulberry32 RNG.** Every random choice (damage roll, status chance, AI timing) comes from the match seed, so a match is fully reproducible from its seed and its input log.
 - **Play of the Match re-simulates from the start instead of keeping rolling snapshots.** The brief suggests a snapshot every second; the sim costs ~0.012 ms per tick, so replaying a 4-minute Trainer Battle from tick 0 takes ~0.2 s and needs no snapshot code to keep in sync. The replay starts 5 s (300 ticks) before the final knockout.
