@@ -89,6 +89,7 @@ export class Gfx {
     this.atlas = new Map(); this.white = new Map(); this.maps = new Map(); this.portraits = new Map();
     this.fonts = null; this.fontImg = {}; this.trainers = new Map(); this.px = new Map();
     this.missing = new Set();
+    this.paintings = new Map(); this.characterArt = new Map();
   }
   async init() {
     this.fx = await loadJSON(BASE + 'fx/manifest.json');
@@ -101,6 +102,8 @@ export class Gfx {
     const [meta, img] = await Promise.all([CONTENT.sprites[id] ? Promise.resolve(null) : loadJSON(BASE + 'fighters/' + id + '.json'), loadImage(BASE + 'fighters/' + id + '.png')]);
     if (meta) CONTENT.sprites[id] = prepSprite(meta);
     this.atlas.set(id, img);
+    // Presentation assets are optional: original sprites remain a complete fallback.
+    try { this.characterArt.set(id, await loadImage(BASE + 'visual/portraits/' + id + '.webp')); } catch (e) { /* sprite portrait fallback */ }
     const m = CONTENT.sprites[id];
     if (m.portraits && m.portraits.length) { try { this.portraits.set(id, await loadImage(BASE + 'fighters/' + id + '-portraits.png')); } catch (e) { /* no portrait */ } }
   }
@@ -228,7 +231,14 @@ export class Gfx {
     });
   }
   // ----------------------------------------------- maps, trainers
-  async loadMap(id) { if (!this.maps.has(id)) this.maps.set(id, await loadImage(BASE + 'maps/' + id + '.png')); return this.maps.get(id); }
+  async loadMap(id) {
+    if (!this.maps.has(id)) this.maps.set(id, await loadImage(BASE + 'maps/' + id + '.png'));
+    if (id !== 'indigo-cheer' && !this.paintings.has(id)) {
+      try { this.paintings.set(id, await loadImage(BASE + 'visual/maps/' + id + '.webp')); }
+      catch (e) { this.paintings.set(id, null); }
+    }
+    return this.maps.get(id);
+  }
   async loadTrainer(id) { if (!this.trainers.has(id)) this.trainers.set(id, await loadImage(BASE + 'trainers/' + id + '.png')); return this.trainers.get(id); }
   // ----------------------------------------------- PMD pixel font (world text)
   textWidth(str, font = 'text') {

@@ -1,23 +1,53 @@
 # Status — handoff for the next update session
 
-**Mike Arena 1.1.0 (2026-11-09).** The cinematic edition with Arcade, Training and Records (see `docs/CHANGELOG.md`), published to https://atxr1.github.io/Mike-Arena/ from
-`main` of `atxr1/Mike-Arena`; source on that repository's `src` branch and in `mike-arena-src-1.1.0.zip`.
-It is built from Arena 1.0.1, which stays frozen at https://atxr1.github.io/Polish.-/ (`atxr1/Polish.-`, branches
-`release-1.0.1` and `release-1.0.1-src`). Gameplay code is shared and identical; only presentation differs.
+**Mike Arena 2.0.0 (2026-11-11).** Combat 2.0 plus the League Atelier visual layer (see `docs/CHANGELOG.md`,
+`docs/COMBAT.md`, `docs/VISUAL-HANDOFF.md`), published to https://atxr1.github.io/Mike-Arena/ from `main` of
+`atxr1/Mike-Arena`; source on that repository's `src` branch and in `mike-arena-src-2.0.0.zip`. Checkpoints:
+`release-2.0.0` / `release-2.0.0-src` (and `release-1.1.0` / `release-1.1.0-src` for the previous version).
+The original Arena 1.0.1 stays frozen at https://atxr1.github.io/Polish.-/ (`atxr1/Polish.-`, branches
+`release-1.0.1` and `release-1.0.1-src`). **From 2.0 the simulation is no longer shared with it.**
 
 ## Start here
 1. `git clone -b src https://github.com/atxr1/Mike-Arena mike-arena && cd mike-arena` (or unzip the source zip).
 2. `bun tools/build.mjs --all` — fetches the pinned sources (tools/sources.json), rebuilds every asset into `site/`, writes the zip.
 3. `cd site && python3 -m http.server 8078`, open `http://localhost:8078/` (`?lab=1` for the capture lab; tests read `PORT`).
-4. Before shipping a change: `bun tools/validate.mjs && bun tools/replaycheck.mjs && bun tools/shapelint.mjs && node tests/e2e.mjs`; for balance changes `bun tools/harness.mjs --runs 300 --format both` (and `bun tools/tune.mjs` to re-even win rates).
+4. Before shipping a change: `bun tools/validate.mjs && bun tests/rules.mjs && bun tools/replaycheck.mjs && bun tools/shapelint.mjs && node tests/e2e.mjs && node tests/v20.mjs`; after any change to combat or the CPU also `bun tools/bots.mjs` (compare with the table below); for balance changes `bun tools/harness.mjs --runs 300 --format both` (and `bun tools/tune.mjs` to re-even win rates).
 5. Publish: copy `site/` to the root of `main` (keep `.nojekyll`), push, then load the live URL and check the version stamp in `app.js?v=`.
 
 ## Where things are
 - Content data: `src/content/` (species, moves, maps, trainers, balance multipliers). How to add content: `docs/CONTENT.md`.
-- Simulation: `src/game/` (sim, fighter, mechanics = the move library, serpent, traversal, features, ai).
+- Simulation: `src/game/` (sim, fighter, mechanics = the move library, serpent, traversal, features, ai). **Every Combat 2.0 number is in `src/game/combat.js`.**
+- Visual layer: `inputs/visual-overhaul/` (paintings, portraits, icons, tokens), `src/ui/visual.css` (the theme, appended to the base stylesheet by the build), `Gfx.paintings` / `Gfx.characterArt` and `World.drawScenery`.
 - Rendering: `src/render/` (world, fx, gfx loader, authored pixel art, serpent art). HUD and menus: `src/ui/`.
 - Cinematics: `src/ui/cinema.js` (the director: camera, holds, letterbox, cut-ins, stamps, lower thirds) and its hooks in `src/modes/battle.js` `render()` / `frame()`.
 - Tests and captures write to `shots/` (contact sheets, captures, e2e screenshots, soak report).
+
+## Last verification (2026-11-11, Mike Arena 2.0.0)
+- `bun tests/rules.mjs`: 35 rule checks in the real simulation, all pass. Validator (191 moves, 42 species, 12 maps,
+  229 move runs), replay determinism (36/36) and shape lint (0) pass.
+- `node tests/v20.mjs` (new): Training goals, the string by hand, the chain window lighting up, knockdown, results
+  with style rank, medals and mastery, Records. `node tests/v11.mjs` and `tests/e2e.mjs` at 844×390 and 932×430 pass
+  on the merged build. Screens reviewed at 844×390: title, menus, fighter and trainer select, arenas, VS, battle,
+  pause, results, records, controls.
+- Pacing (`tools/feel.mjs --pace`, Normal vs Normal): ground 45 s, air 47 s, water 41 s; 1.3 Ultimates per fighter per
+  battle; 1.8–3.3 lead changes; 33–48 % of battles won under 30 % health; Ultimates are 13–15 % of all damage.
+- Balance (`tools/harness.mjs --runs 900 --format pokemon`): medians 47.5 / 42.5 / 45.3 s (ground / water / air), 0
+  errors, 0 stalls; every fighter 39–57 %. Trainer Battles: medians 2.0 / 2.3 / 2.2 min; trainer teams
+  (`tools/tune_teams.mjs`, 100–160 battles per team) ground 47–54 %, water 42–59 %, air 43–59 %.
+- Soak (`node tests/soak.mjs 4`, painted arenas on): frame average 1.9 ms, worst p95 5.5 ms, heap 7 → 12 MB, no errors.
+- Ultimates (`tools/ults.mjs`): mean 11.8 % of the target's health per use, 90th percentile 25.8 %, cap 34 %; 21 % miss.
+- Chain matrix (`tools/feel.mjs --chains`): 182 of 218 connect.
+- Difficulty (`tools/bots.mjs`, 46 battles per cell, bot win %; ground / air / water):
+
+  | Bot | Easy | Normal | Hard |
+  |---|---|---|---|
+  | masher (holds ✕) | 96 / 83 / 96 | 24 / 26 / 2 | 15 / 17 / 4 |
+  | novice (random buttons) | 87 / 87 / 89 | 28 / 28 / 35 | 17 / 24 / 24 |
+  | masherPlus (chains every hit) | 96 / 98 / 100 | 70 / 63 / 63 | 59 / 59 / 57 |
+  | runner (keeps away, pokes) | 39 / 35 / 65 | 11 / 17 / 7 | 11 / 17 / 11 |
+  | solid (chains, dodges, Break) | 98 / 98 / 100 | 72 / 72 / 70 | 57 / 67 / 70 |
+
+- Not checked: feel, sound and frame rate on a real iPhone.
 
 ## Last verification (2026-11-09, Mike Arena 1.1.0)
 - `node tests/v11.mjs` (new): main menu, Records, a full six-stage Arcade run with a reload and resume in the middle,
@@ -57,6 +87,13 @@ Carried over from Arena 1.0.1 (same simulation):
 - Headless Chromium can't decode AAC, so automated runs are silent; sound must be checked on a real device.
 - **Trainer teams** are evened out with a per-team multiplier (`src/content/teambalance.js`). After changing a team or a fighter's balance, re-run `bun tools/tune_teams.mjs --env <env> --rounds 4 --seeds 6 --out x.json` for each environment and `bun tools/write_teams.mjs x.json …`.
 - **Arcade ranks** (`arcadeRank` in `src/modes/arcade.js`) are a first guess at thresholds; adjust once real scores are known.
+- **Hard CPU** loses 57–70 % to the scripted players that chain every hit. Next steps that the traces point to: swat
+  or dodge ranged basic pokes while approaching, stop whiffing dash strikes into a punish, and bait the wake-up jab.
+- **Meowth and Weezing** sit at the bottom of the ground table and want kit changes, not bigger multipliers.
+- **36 chains** (charge moves, lobs, out-of-range dashes) still miss a target that is getting up; either let a chain
+  that is already in flight through the get-up protection or leave it as route knowledge.
+- **Visual layer extras** not used yet: 34 symbols, 18 type medallions, 6 panel frames and 8 effect overlays in
+  `inputs/visual-overhaul/` (see its `manifest.json` for integration status).
 - The backlog in `docs/IMPROVEMENTS.md` is done except where it says otherwise at its top.
 - **Deoxys formes** have no faint pose of their own (no PSP sprite); they use Sleep.
 - Only the user can verify on the iPhone: Home Screen install, landscape layout, sound with the silent switch on, touch feel, frame rate, save persistence.

@@ -50,7 +50,7 @@ mv('closecombat', 'Close Combat', 'Fighting', 'physical', 'heavy', 100, {
   ai: { r: [0, 36], kind: 'melee' }, desc: 'A flurry of blows. Lowers own Defense briefly.',
 });
 mv('quickattack', 'Quick Attack', 'Normal', 'physical', 'light', 34, {
-  anim: 'Attack', startup: 8, sfx: 'DUN_Move_Start', cost: 11,
+  anim: 'Attack', startup: 8, sfx: 'DUN_Move_Start', cost: 11, cd: 40,
   steps: [S('dash', { dist: 90, ticks: 8, trail: 'Puff_White', trailGap: 2, hitR: 14, kb: 2, stun: 12 })],
   hitFx: 'Hit_Neutral', ai: { r: [30, 100], kind: 'dash' }, desc: 'A lightning-fast tackle.',
 });
@@ -125,7 +125,7 @@ mv('zapcannon', 'Zap Cannon', 'Electric', 'special', 'sig', 125, {
   ai: { r: [60, 240], kind: 'proj' }, desc: 'Long charge, then a slow orb that always paralyzes (Sparky).',
 });
 mv('bite', 'Bite', 'Dark', 'physical', 'light', 38, {
-  anim: 'Attack', sfx: 'DUN_Bite', status: { flinch: 0.2 }, cost: 12, hitFx: 'Bite',
+  anim: 'Attack', sfx: 'DUN_Bite', status: { flinch: 0.2 }, cost: 12, cd: 36, hitFx: 'Bite',
   steps: [S('melee', { range: 26, arc: 1.8, lunge: 10, kb: 1.8, stun: 13 })],
   ai: { r: [0, 36], kind: 'melee' }, desc: 'A crunching bite. May flinch.',
 });
@@ -173,7 +173,7 @@ mv('earthquake', 'Earthquake', 'Ground', 'physical', 'heavy', 96, {
 });
 mv('dracometeor', 'Draco Meteor', 'Dragon', 'special', 'ult', 70, {
   anim: 'SpAttack', startup: 26, windup: { t: 18, anim: 'Charge', fx: 'Charge_Up' }, sfxStart: 'DUN_Move_Start', sfx: 'DUN_Draco_Meteor',
-  steps: [S('strikes', { n: 6, pattern: 'mixed', spread: 150, delay: 46, gap: 9, r: 34, oneHit: false, tele: 'meteor', fall: 'Draco_Meteor_Streaks', burst: 'Draco_Meteor_Explosion', kb: 4, shake: 5 })],
+  steps: [S('strikes', { n: 6, pattern: 'mixed', spread: 150, delay: 40, gap: 9, r: 34, oneHit: false, trackEvery: 2, tele: 'meteor', fall: 'Draco_Meteor_Streaks', burst: 'Draco_Meteor_Explosion', kb: 4, shake: 5 })],
   ai: { r: [0, 300], kind: 'area' }, desc: 'Ultimate: meteors rain over a wide area (Rocket).',
 });
 // ---------------------------------------------------------------------------------------------- Metagross
@@ -237,10 +237,10 @@ mv('flareblitzx', 'Blue Flare Blitz', 'Fire', 'physical', 'ult', 170, {
   hitFx: 'Flare_Blitz_Hit_Front|Dragon', ai: { r: [40, 230], kind: 'dash' }, desc: 'Ultimate: Mega Charizard X\'s blue-flame charge.',
 });
 // ---------------------------------------------------------------------------------------------- Blastoise
-mv('watergun', 'Water Gun', 'Water', 'special', 'light', 32, {
+mv('watergun', 'Water Gun', 'Water', 'special', 'light', 34, {
   anim: 'Shoot', sfx: 'DUN_Water_Gun_2', cost: 11,
   steps: [S('proj', { count: 2, gap: 5, speed: 5.4, range: 200, r: 7, sprite: 'Water_Spout_Drop', spriteFT: 2, trail: 'Bubbles_Blue', trailGap: 5, from: 'head' })],
-  hitFx: 'Hydro_Cannon', ai: { r: [30, 190], kind: 'proj' }, desc: 'Twin cannon shots of water.',
+  hitFx: 'Hydro_Cannon', ai: { r: [30, 190], kind: 'proj' }, desc: 'Cannon shots of water.',
 });
 mv('hydropumpb', 'Hydro Pump', 'Water', 'special', 'heavy', 100, {
   anim: 'Shoot', startup: 18, sfx: 'DUN_Hydro_Pump', cost: 34, cd: 84, hitFx: 'Hydro_Cannon',
@@ -283,16 +283,16 @@ mv('solarbeam', 'Solar Beam', 'Grass', 'special', 'sig', 128, {
   steps: [S('beam', { len: 260, width: 22, ticks: 22, interval: 22, beam: 'Beam_2', kb: 4, stun: 22 })],
   hitFx: 'Seed_Flare_Burst', ai: { r: [40, 250], kind: 'beam' }, desc: 'Gathers light, then fires a huge beam.',
 });
-mv('petalblizzard', 'Petal Blizzard', 'Grass', 'physical', 'ult', 26, {
+mv('petalblizzard', 'Petal Blizzard', 'Grass', 'physical', 'ult', 34, {
   anim: 'Rotate', startup: 20, sfx: 'DUN_Leaf_Storm_3', sfxStart: 'DUN_Leaf_Storm_2',
-  steps: [S('area', { where: 'self', follow: true, r: 84, ticks: 270, interval: 18, zoneFx: 'Petal_Dance_Front', zoneFT: 2, kb: 1.2, stun: 8 })],
+  steps: [S('area', { where: 'self', follow: true, r: 96, ticks: 270, interval: 18, zoneFx: 'Petal_Dance_Front', zoneFT: 2, kb: 1.2, stun: 8, slow: 0.7 })],
   ai: { r: [0, 80], kind: 'zone' }, desc: 'Ultimate: a petal storm swirls around Venusaur.',
 });
 // ---------------------------------------------------------------------------------------------- Tyranitar
-mv('crunch', 'Crunch', 'Dark', 'physical', 'medium', 64, {
-  anim: 'Attack', sfx: 'DUN_Bite', cost: 20, cd: 27, hitFx: 'Crunch',
+mv('crunch', 'Crunch', 'Dark', 'physical', 'light', 46, {
+  anim: 'Attack', sfx: 'DUN_Bite', hitFx: 'Crunch', basic: { startup: [9, 8, 11], kb: [0.35, 0.35, 2.8] },
   steps: [S('melee', { range: 30, arc: 1.9, lunge: 12, kb: 2.6, stun: 18, defDown: true })],
-  ai: { r: [0, 38], kind: 'melee' }, desc: 'Crushing fangs; lowers the target\'s Defense.',
+  ai: { r: [0, 38], kind: 'melee' }, desc: 'Slow, crushing bites. The finisher lowers the target\'s Defense.',
 });
 mv('stoneedge', 'Stone Edge', 'Rock', 'physical', 'heavy', 96, {
   anim: 'Strike', startup: 22, sfx: 'DUN_Stone_Edge', cost: 36, cd: 90, crit: 0.2,
@@ -321,10 +321,10 @@ mv('bulletblitz', 'Bullet Punch Blitz', 'Steel', 'physical', 'ult', 70, {
   hitFx: 'Bullet_Punch', ai: { r: [0, 140], kind: 'dash' }, desc: 'Ultimate: five chained bullet dashes (Golden Knight).',
 });
 // ---------------------------------------------------------------------------------------------- Lucario
-mv('bonerush', 'Bone Rush', 'Ground', 'physical', 'light', 16, {
+mv('bonerush', 'Bone Rush', 'Ground', 'physical', 'light', 36, {
   anim: 'Double', sfx: 'DUN_Cut', cost: 12, hitFx: 'Bonemarang_Hit',
   steps: [S('melee', { range: 30, arc: 2.0, hits: 3, interval: 5, lunge: 10, kb: 1.4, stun: 10, swipe: 'Bonemarang' })],
-  ai: { r: [0, 38], kind: 'melee' }, desc: 'Strikes three times with a bone of aura.',
+  ai: { r: [0, 38], kind: 'melee' }, desc: 'Three strikes with a bone of aura.',
 });
 mv('aurasphere', 'Aura Sphere', 'Fighting', 'special', 'medium', 66, {
   anim: 'SpAttack', sfx: 'DUN_Aura_Sphere', cost: 24, cd: 30, hitFx: 'Focus_Blast_Hit',
@@ -378,16 +378,16 @@ mv('flareblitze', 'Flare Blitz', 'Fire', 'physical', 'sig', 125, {
   steps: [S('dash', { dist: 190, ticks: 19, ramp: 0.7, trail: 'Flamethrower', trailGap: 2, hitR: 19, kb: 5.5, stun: 26, recoil: 0.1 })],
   hitFx: 'Flare_Blitz_Hit_Front', ai: { r: [50, 190], kind: 'dash' }, desc: 'Blazing charge: more damage the farther it travels (Prince).',
 });
-mv('eruption', 'Eruption', 'Fire', 'special', 'ult', 64, {
+mv('eruption', 'Eruption', 'Fire', 'special', 'ult', 80, {
   anim: 'Charge', startup: 24, sfx: 'EVT_Tower_Quake', sfxStart: 'DUN_Lava_Plume',
-  steps: [S('fxonly', { fx: 'Eruption' }), S('strikes', { n: 8, pattern: 'mixed', spread: 200, delay: 34, gap: 7, r: 26, tele: 'lava', fall: 'Eruption_Rocks', burst: 'Lava_Plume_Fire', kb: 3, shake: 4, hpScale: true })],
+  steps: [S('fxonly', { fx: 'Eruption' }), S('strikes', { n: 8, pattern: 'mixed', spread: 200, delay: 34, gap: 7, r: 28, trackEvery: 2, tele: 'lava', fall: 'Eruption_Rocks', burst: 'Lava_Plume_Fire', kb: 3, shake: 4, hpScale: true })],
   ai: { r: [0, 300], kind: 'area' }, desc: 'Ultimate: a volcano of magma rocks — stronger at high HP.',
 });
 // ---------------------------------------------------------------------------------------------- Suicune
-mv('bubblebeam', 'Bubble Beam', 'Water', 'special', 'light', 13, {
+mv('bubblebeam', 'Bubble Beam', 'Water', 'special', 'light', 30, {
   anim: 'Shoot', sfx: 'DUN_BubbleBeam', cost: 12, status: { slow: { chance: 0.25, mul: 0.7, ticks: 60 } },
   steps: [S('proj', { count: 4, gap: 3, jitter: 0.25, speed: 4.8, range: 190, r: 6, sprite: 'Bubbles_Blue', spriteFT: 3, newSetEach: true })],
-  hitFx: 'Bubble_Pop_Blue', ai: { r: [30, 180], kind: 'proj' }, desc: 'A spray of bubbles. May slow.',
+  hitFx: 'Bubble_Pop_Blue', ai: { r: [30, 180], kind: 'proj' }, desc: 'Bubbles. The finisher may slow.',
 });
 mv('aurorabeam', 'Aurora Beam', 'Ice', 'special', 'heavy', 82, {
   anim: 'SpAttack', startup: 18, sfx: 'DUN_Aurora_Beam', cost: 32, cd: 78, status: { slow: { chance: 1, mul: 0.5, ticks: 120 } },
@@ -410,13 +410,13 @@ mv('surf', 'Surf', 'Water', 'special', 'ult', 150, {
   hitFx: 'Aqua_Tail_Splash', ai: { r: [0, 400], kind: 'area' }, desc: 'Ultimate: a huge wave sweeps the arena and pushes the foe.',
 });
 // ---------------------------------------------------------------------------------------------- Sceptile
-mv('leafblade', 'Leaf Blade', 'Grass', 'physical', 'medium', 66, {
-  anim: 'Strike', sfx: 'DUN_Leaf_Blade', sfxStart: 'DUN_Move_Start', cost: 20, cd: 24, crit: 0.2, hitFx: 'Leaf_Blade',
+mv('leafblade', 'Leaf Blade', 'Grass', 'physical', 'light', 40, {
+  anim: 'Strike', sfx: 'DUN_Leaf_Blade', crit: 0.15, hitFx: 'Leaf_Blade',
   steps: [S('melee', { range: 32, arc: 2.2, lunge: 18, kb: 2.6, stun: 16, swipe: 'Cut|Grass' })],
   ai: { r: [0, 44], kind: 'melee' }, desc: 'A sharp leaf slash with a high critical rate.',
 });
 mv('bulletseed', 'Bullet Seed', 'Grass', 'physical', 'light', 10, {
-  anim: 'Shoot', sfx: 'DUN_Bullet_Seed', cost: 13,
+  anim: 'Shoot', sfx: 'DUN_Bullet_Seed', cost: 13, cd: 40,
   steps: [S('proj', { count: 5, gap: 4, jitter: 0.18, speed: 6.4, range: 190, r: 5, sprite: 'Bullet_Seed_Seed', spriteFT: 2, newSetEach: true, stun: 4 })],
   hitFx: 'Seed_Bomb_Blast', ai: { r: [30, 180], kind: 'proj' }, desc: 'Rapid-fire seeds.',
 });
@@ -515,7 +515,7 @@ mv('nightmarefield', 'Nightmare Field', 'Ghost', 'special', 'ult', 20, {
   ai: { r: [0, 400], kind: 'zone' }, desc: 'Ultimate: a nightmare field that blocks the foe\'s moves (EMP).',
 });
 // ---------------------------------------------------------------------------------------------- Pikachu
-mv('nuzzle', 'Nuzzle', 'Electric', 'physical', 'light', 26, {
+mv('nuzzle', 'Nuzzle', 'Electric', 'physical', 'light', 32, {
   anim: 'Attack', sfx: 'DUN_Attack', status: { para: 0.3 }, cost: 12, hitFx: 'Spark',
   steps: [S('melee', { range: 24, arc: 1.8, lunge: 14, kb: 1.4, stun: 12 })],
   ai: { r: [0, 34], kind: 'melee' }, desc: 'Rubs electrified cheeks on the foe. May paralyze.',
@@ -541,7 +541,7 @@ mv('volttackle', 'Volt Tackle', 'Electric', 'physical', 'ult', 170, {
   hitFx: 'Charge_Beam_Hit', ai: { r: [30, 260], kind: 'dash' }, desc: 'Ultimate: an electrified charge with recoil (Prince).',
 });
 // ---------------------------------------------------------------------------------------------- Meowth
-mv('furyswipes', 'Fury Swipes', 'Normal', 'physical', 'light', 22, {
+mv('furyswipes', 'Fury Swipes', 'Normal', 'physical', 'light', 30, {
   anim: 'MultiStrike', sfx: 'DUN_Fury_Swipes', cost: 11, hitFx: 'Fury_Swipes',
   steps: [S('melee', { range: 24, arc: 2.0, lunge: 10, kb: 1.3, stun: 11, stacking: true })],
   ai: { r: [0, 34], kind: 'melee' }, desc: 'Scratches harder with each consecutive hit.',
@@ -552,7 +552,7 @@ mv('payday', 'Pay Day', 'Normal', 'physical', 'medium', 16, {
   hitFx: 'Swift_RSE', ai: { r: [30, 170], kind: 'proj' }, desc: 'Scatters coins; picked-up coins charge the Ultimate.',
 });
 mv('fakeout', 'Fake Out', 'Normal', 'physical', 'light', 30, {
-  anim: 'Attack', startup: 6, sfx: 'DUN_Punch', sfxStart: 'DUN_Leer', cost: 12, hitFx: 'Sucker_Punch_Hit',
+  anim: 'Attack', startup: 6, sfx: 'DUN_Punch', sfxStart: 'DUN_Leer', cost: 12, cd: 60, hitFx: 'Sucker_Punch_Hit',
   steps: [S('melee', { range: 26, arc: 2.0, lunge: 16, kb: 1.6, stun: 12, fakeout: true })],
   ai: { r: [0, 36], kind: 'melee' }, desc: 'A sneaky slap: flinches if used right after entering or dodging.',
 });
@@ -562,6 +562,21 @@ mv('jackpot', 'Pay Day Jackpot', 'Normal', 'physical', 'ult', 18, {
   hitFx: 'Swift_RSE', ai: { r: [0, 200], kind: 'area' }, desc: 'Ultimate: a jackpot storm of coins in every direction.',
 });
 // ---------------------------------------------------------------------------------------------- Arbok
+mv('poisonsting', 'Poison Sting', 'Poison', 'physical', 'light', 32, {
+  anim: 'Shoot', sfx: 'DUN_Poison_Jab', status: { poison: 0.4 },
+  steps: [S('proj', { speed: 6.0, range: 185, r: 6, sprite: 'Poison_Ball_Ranger', spriteFT: 2 })],
+  hitFx: 'Poison_Jab', ai: { r: [30, 175], kind: 'proj' }, desc: 'Venomous barbs. The finisher may poison.',
+});
+mv('smog', 'Smog', 'Poison', 'special', 'light', 32, {
+  anim: 'Shoot', sfx: 'DUN_Throw_Arc', status: { poison: 0.4 },
+  steps: [S('proj', { speed: 4.6, range: 180, r: 8, sprite: 'Smoke_Purple', spriteFT: 2 })],
+  hitFx: 'Bubbles_Purple', ai: { r: [30, 170], kind: 'proj' }, desc: 'Puffs of filthy gas. The finisher may poison.',
+});
+mv('gust', 'Gust', 'Flying', 'special', 'light', 36, {
+  anim: 'Shoot', sfx: 'DUN_Punishment',
+  steps: [S('proj', { speed: 5.0, range: 200, r: 8, sprite: 'Wide_Slash|Flying', spriteFT: 3, trail: 'Air_Slash_Particle', trailGap: 6 })],
+  hitFx: 'Air_Slash_Slash', ai: { r: [30, 190], kind: 'proj' }, desc: 'Blades of wind from a beat of the wings.',
+});
 mv('gunkshot', 'Gunk Shot', 'Poison', 'physical', 'heavy', 98, {
   anim: 'Shoot', startup: 22, sfx: 'DUN_Gunk_Shot', sfxStart: 'DUN_Gunk_Shot_2', status: { poison: 0.4 }, cost: 34, cd: 84,
   steps: [S('proj', { speed: 4.0, range: 220, r: 11, sprite: 'Gunk_Shot', spriteFT: 3, trail: 'Gunk_Shot_Particle', trailGap: 4, kb: 3.5 })],
@@ -576,11 +591,6 @@ mv('glare', 'Glare', 'Normal', 'status', 'medium', 0, {
   anim: 'Charge', startup: 12, sfx: 'DUN_Leer_2', cost: 24, cd: 210, status: { para: { chance: 1, ticks: 150 } },
   steps: [S('cone', { range: 110, arc: 1.2, fx: 'Scary_Face' })],
   hitFx: 'Leer', ai: { r: [0, 105], kind: 'cone' }, desc: 'A paralyzing cone of menace (Flashbang).',
-});
-mv('coil', 'Coil', 'Poison', 'status', 'medium', 0, {
-  anim: 'Charge', startup: 12, sfx: 'DUN_Conversion2', cost: 22, cd: 480,
-  steps: [S('buff', { stats: { atk: 1.2, def: 1.2 }, ticks: 300, fx: 'Wrap_White_Front', fxFollow: true })],
-  ai: { r: [140, 999], kind: 'buff' }, desc: 'Coils up: Attack and Defense up.',
 });
 mv('toxicpool', 'Toxic', 'Poison', 'special', 'ult', 24, {
   anim: 'Shoot', startup: 20, sfx: 'DUN_Toxic', status: { poison: { chance: 1, ticks: 360 } },
@@ -598,13 +608,8 @@ mv('smokescreen', 'Smokescreen', 'Normal', 'status', 'medium', 0, {
   steps: [S('area', { where: 'self', r: 64, ticks: 240, interval: 999, zoneFx: 'Puff_Black', zoneFT: 3, smoke: true })],
   ai: { r: [0, 999], kind: 'smoke' }, desc: 'A smoke cloud hides Weezing and its target arrow.',
 });
-mv('toxicspikes', 'Toxic Spikes', 'Poison', 'status', 'medium', 10, {
-  anim: 'Shoot', sfx: '_UNK_DUN_Rustle', cost: 22, cd: 240,
-  steps: [S('summon', { kind: 'spikes', n: 4, spread: 56, ticks: 720, power: 12 })],
-  ai: { r: [30, 220], kind: 'trap' }, desc: 'Scatters poison spikes around the foe (Junkrat traps).',
-});
 mv('willowisp', 'Will-O-Wisp', 'Fire', 'status', 'light', 6, {
-  anim: 'Shoot', sfx: 'DUN_Fire_Spin', cost: 14, status: { burn: { chance: 1, ticks: 300 } },
+  anim: 'Shoot', sfx: 'DUN_Fire_Spin', cost: 14, cd: 60, status: { burn: { chance: 1, ticks: 300 } },
   steps: [S('proj', { speed: 3.0, range: 200, r: 8, homing: 0.03, sprite: 'Grudge_Lights', spriteFT: 3, trail: 'Grudge_Lights', trailGap: 8 })],
   hitFx: 'Burned', ai: { r: [40, 190], kind: 'proj' }, desc: 'A sinister flame that burns.',
 });
@@ -614,10 +619,10 @@ mv('explosion', 'Explosion', 'Normal', 'physical', 'ult', 230, {
   ai: { r: [0, 100], kind: 'area' }, desc: 'Ultimate: a huge telegraphed blast that costs Weezing 30% HP (Self-Destruct).',
 });
 // ---------------------------------------------------------------------------------------------- Chansey
-mv('doubleslap', 'Double Slap', 'Normal', 'physical', 'light', 18, {
+mv('doubleslap', 'Double Slap', 'Normal', 'physical', 'light', 34, {
   anim: 'Attack', sfx: 'DUN_Attack', cost: 11, hitFx: 'Force_Palm_Hand',
   steps: [S('melee', { range: 24, arc: 1.9, hits: 2, interval: 6, lunge: 8, kb: 1.6, stun: 12 })],
-  ai: { r: [0, 34], kind: 'melee' }, desc: 'Two quick slaps.',
+  ai: { r: [0, 34], kind: 'melee' }, desc: 'Quick slaps.',
 });
 mv('eggbomb', 'Egg Bomb', 'Normal', 'physical', 'medium', 72, {
   anim: 'Shoot', sfx: 'DUN_Self-Destruct', cost: 24, cd: 30,
@@ -641,7 +646,7 @@ mv('healingwave', 'Healing Wish', 'Fairy', 'status', 'ult', 0, {
 });
 // ---------------------------------------------------------------------------------------------- Growlithe
 mv('flamecharge', 'Flame Charge', 'Fire', 'physical', 'light', 36, {
-  anim: 'Attack', startup: 8, sfx: 'DUN_Fire_Spin', cost: 12, hitFx: 'Flame_Wheel',
+  anim: 'Attack', startup: 8, sfx: 'DUN_Fire_Spin', cost: 12, cd: 40, hitFx: 'Flame_Wheel',
   steps: [S('dash', { dist: 120, ticks: 8, hitR: 14, trail: 'Lava_Plume_Fire', trailGap: 2, kb: 2.2, stun: 13, resetOnHit: true }), S('fn', { at: 1, fn: (f) => f.addBuff('spe', 1.1, 240, 'fcharge') })],
   ai: { r: [30, 120], kind: 'dash' }, desc: 'A blazing dash (Extreme Speed role); speeds up and resets on hit.',
 });
@@ -666,11 +671,6 @@ mv('freezedry', 'Freeze-Dry', 'Ice', 'special', 'medium', 64, {
   anim: 'Shoot', sfx: 'DUN_Ice_Beam_2', status: { freeze: 0.1 }, cost: 22, cd: 30, superVs: 'Water',
   steps: [S('proj', { speed: 4.8, range: 210, r: 9, sprite: 'Ice_Ball', spriteFT: 2, trail: 'Smoke_White', trailGap: 5 })],
   hitFx: 'Ice_Shard_Pieces', ai: { r: [40, 200], kind: 'proj' }, desc: 'Super-chilled shards — super effective on Water.',
-});
-mv('mistwall', 'Mist', 'Ice', 'status', 'medium', 0, {
-  anim: 'Shoot', startup: 12, sfx: 'DUN_Pokemon_Trap', cost: 24, cd: 300,
-  steps: [S('wall', { dist: 44, len: 86, thick: 12, ticks: 180, sprite: 'Ice_Pieces' })],
-  ai: { r: [60, 999], kind: 'wall' }, desc: 'Raises an icy wall that blocks movement and projectiles for 3 s (Ice Wall).',
 });
 mv('hurricane', 'Hurricane', 'Flying', 'special', 'heavy', 96, {
   anim: 'SpAttack', startup: 22, sfx: 'DUN_Howling_Wind', status: { confuse: 0.3 }, cost: 36, cd: 90,
@@ -749,7 +749,7 @@ mv('rebirth', 'Sacred Rebirth', 'Fire', 'special', 'ult', 0, {
 });
 mv('sacredinferno', 'Sacred Fire Inferno', 'Fire', 'physical', 'ult', 34, {
   anim: 'Shoot', startup: 22, sfx: 'DUN_Sacred_Fire', status: { burn: 0.5 },
-  steps: [S('strikes', { n: 7, pattern: 'mixed', spread: 150, delay: 30, gap: 10, r: 30, tele: 'fire', fall: 'Sacred_Fire_Pillar', burst: 'Fire_Column_Ranger', kb: 2.5, stun: 18, shake: 3 })],
+  steps: [S('strikes', { n: 7, pattern: 'mixed', spread: 150, delay: 30, gap: 10, r: 30, trackEvery: 2, tele: 'fire', fall: 'Sacred_Fire_Pillar', burst: 'Fire_Column_Ranger', kb: 2.5, stun: 18, shake: 3 })],
   ai: { r: [0, 400], kind: 'area' }, desc: 'Ultimate: pillars of sacred fire rain down.',
 });
 mv('fly', 'Fly', 'Flying', 'physical', 'heavy', 96, {
@@ -764,7 +764,7 @@ mv('dracometeorsig', 'Draco Meteor', 'Dragon', 'special', 'sig', 54, {
 });
 mv('meteorshower', 'Meteor Shower', 'Dragon', 'special', 'ult', 60, {
   anim: 'SpAttack', startup: 24, windup: { t: 16, anim: 'Charge', fx: 'Charge_Up' }, sfx: 'DUN_Draco_Meteor',
-  steps: [S('strikes', { n: 12, pattern: 'random', spread: 400, delay: 40, gap: 9, r: 32, tele: 'meteor', fall: 'Draco_Meteor_Streaks', burst: 'Draco_Meteor_Explosion', kb: 3.5, shake: 4 })],
+  steps: [S('strikes', { n: 12, pattern: 'random', spread: 400, delay: 40, gap: 9, r: 32, trackEvery: 3, tele: 'meteor', fall: 'Draco_Meteor_Streaks', burst: 'Draco_Meteor_Explosion', kb: 3.5, shake: 4 })],
   ai: { r: [0, 400], kind: 'area' }, desc: 'Ultimate: a Draco Meteor shower over the whole arena.',
 });
 mv('dragonbreath', 'Dragon Breath', 'Dragon', 'special', 'light', 30, {
@@ -817,10 +817,10 @@ mv('dragonascentmax', 'Dragon Ascent: Full Power', 'Flying', 'physical', 'ult', 
   steps: [S('leap', { range: 400, ticks: 60, offscreen: true, track: true, landR: 70, kb: 8, shake: 12, landFx: 'Draco_Meteor_Explosion', tele: 'shadow' })],
   ai: { r: [0, 400], kind: 'leap' }, desc: 'Ultimate: Mega Rayquaza\'s Dragon Ascent at full power.',
 });
-mv('psyshock', 'Psyshock', 'Psychic', 'special', 'light', 32, {
+mv('psyshock', 'Psyshock', 'Psychic', 'special', 'light', 34, {
   anim: 'Shoot', sfx: 'DUN_Aura_Sphere', cost: 12, hitFx: 'Circle_Small_Purple_Out',
   steps: [S('proj', { count: 2, spread: 0.18, speed: 5.0, range: 200, r: 7, sprite: 'Magnet_Bomb|Psychic', spriteFT: 2, newSetEach: true })],
-  ai: { r: [30, 190], kind: 'proj' }, desc: 'Twin psychic shards that strike physically.',
+  ai: { r: [30, 190], kind: 'proj' }, desc: 'Psychic shards that strike physically.',
 });
 mv('psychoboost', 'Psycho Boost', 'Psychic', 'special', 'sig', 130, {
   anim: 'SpAttack', startup: 30, windup: { t: 18, anim: 'Charge', fx: 'Psycho_Boost_Back' }, sfx: 'DUN_Psycho_Boost', sfxStart: 'DUN_Blowback_Orb',
@@ -832,8 +832,8 @@ mv('psychoboostmax', 'Psycho Boost Max', 'Psychic', 'special', 'ult', 180, {
   steps: [S('fn', { fn: 'formeboost' })],
   hitFx: 'Psycho_Boost_Front', ai: { r: [30, 300], kind: 'beam' }, desc: 'Ultimate: a maximum-power Psycho Boost shaped by the current forme.',
 });
-mv('wingattack', 'Wing Attack', 'Flying', 'physical', 'medium', 60, {
-  anim: 'Attack', sfx: 'DUN_Wing_Attack_2', cost: 20, cd: 24, hitFx: 'Wing_Attack',
+mv('wingattack', 'Wing Attack', 'Flying', 'physical', 'light', 40, {
+  anim: 'Attack', sfx: 'DUN_Wing_Attack_2', hitFx: 'Wing_Attack',
   steps: [S('melee', { range: 34, arc: 2.6, lunge: 14, kb: 2.6, stun: 15, swipe: 'Air_Slash_Slash' })],
   ai: { r: [0, 44], kind: 'melee' }, desc: 'A wide wing strike.',
 });
@@ -953,11 +953,6 @@ mv('hypnosis', 'Hypnosis', 'Psychic', 'status', 'medium', 0, {
   anim: 'Shoot', startup: 16, sfx: 'DUN_Psybeam', cost: 26, cd: 420, status: { sleep: { chance: 1, ticks: 66 } },
   steps: [S('proj', { count: 1, speed: 3.6, range: 200, r: 12, sprite: 'Wave_Circle_Purple', spriteFT: 3, reflectable: true })],
   hitFx: 'Psych_Up|Psychic', ai: { r: [30, 190], kind: 'proj' }, desc: 'Hypnotic waves put the foe to sleep briefly.',
-});
-mv('coilm', 'Coil', 'Poison', 'status', 'medium', 30, {
-  anim: 'Charge', startup: 10, sfx: 'DUN_Conversion2', cost: 22, cd: 480,
-  steps: [S('buff', { stats: { atk: 1.2, def: 1.25, spa: 1.2 }, ticks: 300, fx: 'Wrap_White_Front', fxFollow: true }), S('area', { where: 'self', r: 40, burst: 'Wrap_White_Back', kb: 2, stun: 14, type: 'Water' })],
-  ai: { r: [0, 999], kind: 'buff' }, desc: 'Coils tightly: stats up, and nearby foes are squeezed.',
 });
 mv('hydropumpm', 'Hydro Pump', 'Water', 'special', 'heavy', 104, {
   anim: 'Shoot', startup: 18, sfx: 'DUN_Hydro_Pump', cost: 34, cd: 84, hitFx: 'Hydro_Cannon',

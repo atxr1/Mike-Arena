@@ -4,7 +4,7 @@
 //   --assets re-run the asset pipeline (PSP files, map paintings, sprites, effects, fonts, audio)
 //   --zip    write arena-src-<version>.zip (source, tools, tests, docs, inputs, source manifest)
 //   --all    all of the above
-import { readFileSync, writeFileSync, mkdirSync, copyFileSync, existsSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, copyFileSync, existsSync, readdirSync, statSync, cpSync, rmSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 const root = new URL('..', import.meta.url).pathname;
 const V = readFileSync(root + 'src/version.js', 'utf8').match(/'([^']+)'/)[1];
@@ -26,7 +26,12 @@ if (ALL || process.argv.includes('--assets')) {
 mkdirSync(root + 'site', { recursive: true });
 const r = await Bun.build({ entrypoints: [root + 'src/main.js'], outdir: root + 'site', naming: 'app.js', minify: true, target: 'browser', format: 'esm', sourcemap: 'none' });
 if (!r.success) { for (const l of r.logs) console.error(l); process.exit(1); }
-copyFileSync(root + 'src/ui/styles.css', root + 'site/app.css');
+writeFileSync(root + 'site/app.css', readFileSync(root + 'src/ui/styles.css', 'utf8') + '\n' + readFileSync(root + 'src/ui/visual.css', 'utf8'));
+// the visual layer: everything except the portrait sources (png) and the offline catalog; portraits deploy as webp
+// copies made by tools/visual_portraits.py
+rmSync(root + 'site/assets/visual', { recursive: true, force: true });
+cpSync(root + 'inputs/visual-overhaul', root + 'site/assets/visual', { recursive: true, filter: (src) => !/visual-overhaul\/(portraits|portraits-web)(\/|$)/.test(src) && !/gallery\.html$/.test(src) });
+cpSync(root + 'inputs/visual-overhaul/portraits-web', root + 'site/assets/visual/portraits', { recursive: true });
 for (const f of ['index.html', 'sw.js']) writeFileSync(root + 'site/' + f, readFileSync(root + 'web/' + f, 'utf8').replaceAll('__V__', stamp));
 copyFileSync(root + 'web/manifest.webmanifest', root + 'site/manifest.webmanifest');
 writeFileSync(root + 'site/.nojekyll', '');

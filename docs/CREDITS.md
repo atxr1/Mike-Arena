@@ -20,6 +20,14 @@ Pokémon and all related names are © Nintendo, Creatures Inc. and GAME FREAK in
 - PSP build assets (`inputs/psp/`): sunset stadium title art (also the app icon), trainer portraits, court and water tiles, Poké Ball banners, Kanto island map, the 25 PSP sound effects, and the faint frames of the PSP fighter sprites (`inputs/psp/faint/`, themselves drawn from the SpriteCollab sprites credited below) for the 35 species whose SpriteCollab sheet has no Faint animation.
 - Arena paintings (`inputs/arena-backgrounds/`, made by the user with ChatGPT): Bell Tower, Mt. Chimney, Spear Pillar, Cerulean Gym, Whirl Islands, Sootopolis, Azure Bay, Sky Pillar, Dragonspiral, Lumiose City — reduced to their true pixel density at build time.
 - Serpent tail fins for Gyarados and Milotic (`inputs/serpents/`, made by the user with ChatGPT).
+- League Atelier visual pack (`inputs/visual-overhaul/`, made by the user with ChatGPT, merged in 2.0): the painted
+  title stadium, twelve high-resolution arena paintings and their previews (repaints of the existing arena layouts),
+  66 SVG icons, type medallions, panel frames and effect overlays, the colour tokens and `src/ui/visual.css`.
+  See [VISUAL-HANDOFF.md](VISUAL-HANDOFF.md).
+- The 53 character illustrations in that pack (`inputs/visual-overhaul/portraits/`) are **official Pokémon artwork**
+  downloaded from [PokeAPI/sprites](https://github.com/PokeAPI/sprites) (`sprites/pokemon/other/official-artwork/`);
+  each file's source URL is in `inputs/visual-overhaul/portrait-sources.json`. They are © Nintendo, Creatures Inc.
+  and GAME FREAK inc. and are used here on the same personal, non-commercial fan basis as everything else.
 - Indigo Plateau Stadium and Lumiose Skyline: painted in code (`tools/paint_maps.py`).
 
 ## Fighter sprites and portraits

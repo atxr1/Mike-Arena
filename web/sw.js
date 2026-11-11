@@ -1,7 +1,7 @@
 // Offline cache: files are cached after first use; each release uses a new cache name so updates replace old files.
 const CACHE = 'mikearena-__V__';   // own prefix: the original Arena (another path on the same origin) keeps its caches
 const CORE = ['./', './index.html', './app.js?v=__V__', './app.css?v=__V__', './manifest.webmanifest', './apple-touch-icon.png', './favicon.png',
-  './assets/ui/title.png', './assets/ui/fonts.json', './assets/fx/manifest.json', './assets/audio/manifest.json', './assets/fighters/_credits.json'];
+  './assets/visual/ui/title.webp', './assets/visual/icons/league-crest.svg', './assets/visual/portraits/charizard.webp', './assets/visual/portraits/pikachu.webp', './assets/ui/title.png', './assets/ui/fonts.json', './assets/fx/manifest.json', './assets/audio/manifest.json', './assets/fighters/_credits.json'];
 self.addEventListener('install', (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(CORE)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k.startsWith('mikearena-') && k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener('fetch', (e) => {

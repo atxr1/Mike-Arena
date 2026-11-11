@@ -46,6 +46,44 @@ Why things are the way they are. Newest first within each section.
 - **The presentation layer advances on simulation ticks** (HUD timers, world animation clock, effects), so banners and animations run at the same speed at 60 Hz, 120 Hz or during slow motion, and freeze while paused.
 - **Button presses are latched until a simulated tick consumes them**, and a press that starts and ends between two frames still counts, so quick taps are never lost.
 
+## Combat 2.0 (Mike Arena 2.0)
+The full reference is `docs/COMBAT.md`; these are the decisions behind it. Where they disagree with the 1.x list
+below (stamina regeneration, the damage constant, the Ultimate meter), this section wins.
+- **One free button.** In 1.x every action cost stamina, so most of a battle was waiting. ✕ is now a free three-hit
+  string for every Pokémon and stamina only gates specials and dodges. Basic hits give stamina back, so attacking is
+  how you earn your specials.
+- **Chains are the whole combo system:** any landed hit can be cancelled into a different special, the Ultimate, a
+  dodge, or back into the string. No motion inputs, no per-character combo lists.
+- **Hit-stop buffers presses.** The sim returns early on frozen ticks, which used to drop every press made during
+  hit-stop and let the chain window run out while the screen was frozen. Chaining from a Finisher was impossible by
+  hand and nobody could have known why. Frozen ticks now buffer presses and hold the windows open
+  (`Fighter.frozenTick`). `tools/feel.mjs --chains` went from 64 of 218 chains connecting to 182 of 218; the rest are
+  charge moves, lobs and dashes that are out of range after a ranged Finisher.
+- **Knockdown and get-up** turn a nonstop slugfest into exchanges. A combo with a Finisher, an Ultimate, a wall slam
+  or four attacks ends in a knockdown; the victim gets up untouchable (27 ticks) and can attack for the last 7 of
+  them. That gives every exchange an end, gives the player who was hit the next move, and removes any chance of
+  being combo'd twice in a row. Break (R after three hits, 35 stamina) is the way out of a combo before it ends.
+- **Holding ✕ is slower than tapping it** (5 ticks). Without this, walking forward with ✕ held beat the Hard CPU
+  about half the time: a held button always swung on the first possible tick. With it, a bot that does nothing but
+  hold ✕ wins 7–20 % against Normal and Hard and still beats Easy.
+- **An Ultimate cannot be interrupted, does 3.2× its power, and is capped at 34 % of a health bar.** Measured before:
+  an average Ultimate took 5.5 % of the target's health, a fifth of them missed outright, and a basic hit could knock
+  one out of its start-up and waste the whole meter.
+- **Every contact basic reaches at least 30 px.** Small Pokémon had 24 px swings, lost every race to swing first and
+  needed absurd multipliers to compensate (Meowth was at 4.5× damage and still won 18 %).
+- **Healing tires** (each heal is divided by 1 + 2 × the share of a health bar already healed). Chansey and Ho-Oh
+  were winning on the clock at the tuner's lowest multipliers by healing two or three health bars per battle.
+- **Difficulty is behaviour, never stats.** Easy rests after every sequence and rarely chains; Hard chains nearly
+  every hit, jabs first up close, side-steps approaches and takes its turn after a knockdown. `tools/bots.mjs`
+  (five scripted players against each level) is the acceptance test.
+- **One smooth layer.** The pixel-art rule (`tools/shapelint.mjs`) still covers fighters, effects and everything
+  drawn into the world buffer. The exception, from the League Atelier merge, is the arena painting: a full-resolution
+  image composited under that buffer by `World.drawScenery` (marked `lint: painted scenery`). Arenas without a
+  painting fall back to the old pixel maps.
+- **Style rank rewards quality, not length:** each kind of play counts up to a cap, a share of the points comes from
+  how one-sided the damage was, and Easy scores 0.8× and Hard 1.15×. Measured with the bots: mashing on Easy lands
+  on C or D, chaining on Normal on B, careful play on Hard on A or S.
+
 ## Combat
 - **Stamina tiers** follow the brief: Light 10–14 / no cooldown, Medium 18–26 / 0.3–0.6 s, Heavy 30–40 / 1.2–2.0 s, Signature 45–55 / 3–4 s, at most one Signature per fighter. `tools/validate.mjs` enforces this. **Exception:** utility moves (buffs, shields, heals, counters, sleep, Roar-type pushes) keep longer cooldowns (2.5–10 s), and a buff, shield or heal-over-time lasts at most two-thirds of its cooldown (validator rule), so none can be kept up permanently. Held shields (Iron Defense) are limited by their stamina drain instead.
 - **Dodge costs 12 stamina with a 0.35 s cooldown** (21 ticks), 13 invulnerable ticks out of a 22-tick roll. A hit that arrives during the first 9 ticks of the roll is a perfect dodge (slow motion, a gold flash and a short counter window).

@@ -13,7 +13,7 @@ import { CONTENT } from '../game/content.js';
 
 const F_COND = '"Barlow Condensed", "Arial Narrow", "Helvetica Neue", sans-serif';
 const F_SEMI = '"Barlow Semi Condensed", "Arial Narrow", "Helvetica Neue", sans-serif';
-const INK = '#05030c', GOLD = '#ffd25a', CREAM = '#fff6e6', DIM = '#b9b0d6';
+const INK = '#05030c', GOLD = '#e9c67f', CREAM = '#fff9e9', DIM = '#aac4cf';
 const easeOut = (u) => 1 - Math.pow(1 - Math.min(1, Math.max(0, u)), 3);
 const easeBack = (u) => { u = Math.min(1, Math.max(0, u)); const c = 1.9; return 1 + (c + 1) * Math.pow(u - 1, 3) + c * Math.pow(u - 1, 2); };
 const approach = (v, t, rate, dt) => v + (t - v) * (1 - Math.pow(1 - rate, dt));
@@ -46,7 +46,7 @@ export class Director {
         const hold = this.reduced ? 28 : 46;
         this.hold = Math.max(this.hold, hold);
         // the band starts sliding out as the hold ends, so it never covers live play
-        this.cut = { kind: 'ult', f, side: f.side, name: ev.name, label: 'Ultimate', type, col: TYPE_COLORS[type] || '#ff8a3d', t: 0, dur: hold + 9, mine: f.side === me };
+        this.cut = { kind: 'ult', f, side: f.side, name: ev.name, label: 'Ultimate', type, col: TYPE_COLORS[type] || '#e9c67f', t: 0, dur: hold + 9, mine: f.side === me };
         this.shotOn({ f, dk: 1, frames: hold + 9, letter: true, dim: true });
         this.dimFor = f; this.kickZoom(0.1);
         break;
@@ -60,7 +60,7 @@ export class Director {
       case 'hit': {
         if (ev.multi || ev.statusOnly || !(ev.dmg > 0) || !ev.heavy) break;
         this.kickZoom(ev.ult ? 0.12 : 0.06);
-        if (ev.ult || ev.eff > 1) this.flashInvert(2);
+        if (ev.ult || (ev.eff > 1 && !ev.basic)) this.flashInvert(2);
         break;
       }
       case 'faint': {
@@ -89,6 +89,8 @@ export class Director {
       case 'sendOut': if (this.live && !this.victory) { this.shotOn({ f: ev.f, dk: 1, frames: 46 }); this.trainerCall(S, ev.f, ev.f.sp.name === 'Pikachu' && S.sides[ev.f.side].trainer === 'ash' ? 'Pikachu, I choose you!' : `Go, ${ev.f.sp.name}!`); } break;
       case 'recallStart': this.trainerCall(S, ev.f, `${ev.f.sp.name}, come back!`); break;
       case 'wallSlam': this.kickZoom(0.09); break;
+      case 'counterHit': this.kickZoom(ev.kind === 'counter' ? 0.09 : 0.06); break;
+      case 'onFire': this.kickZoom(0.1); if (!this.shot) this.shotOn({ f: ev.f, dk: 1, frames: 34 }); break;
       case 'clash': this.kickZoom(0.07); break;
       // mid-match announcements: high on screen, no letterbox, the HUD stays up (the clock keeps running)
       case 'sudden': this.stamp = { text: 'Sudden death', sub: 'The next hit wins', col: '#ff5a5a', t: 0, dur: 80, small: true, top: true }; this.kickZoom(0.06); break;
@@ -218,6 +220,8 @@ export class Director {
   }
   portrait(f, kind) {
     const id = f.spriteId || f.sp.sprite;
+    const art = this.g.characterArt.get(id) || this.g.characterArt.get(f.sp.sprite);
+    if (art) return { img: art, sx: 0, sw: art.width, sh: art.height, hd: true };
     const img = this.g.portraits.get(id) || this.g.portraits.get(f.sp.sprite);
     const meta = CONTENT.sprites[id] || CONTENT.sprites[f.sp.sprite];
     if (!img || !meta || !meta.portraits) return null;
@@ -252,10 +256,10 @@ export class Director {
       c.save();
       c.beginPath(); c.moveTo(px + sk * 0.5, py); c.lineTo(px + ps + sk * 0.5, py); c.lineTo(px + ps - sk * 0.5, py + ps); c.lineTo(px - sk * 0.5, py + ps); c.closePath();
       c.clip();
-      c.imageSmoothingEnabled = false;
+      c.imageSmoothingEnabled = !!P.hd;
       const zoom = 1 + 0.06 * Math.min(1, t / 40);
       const d = ps * zoom;
-      c.drawImage(P.img, P.sx, 0, 40, 40, px + (ps - d) / 2, py + (ps - d) / 2, d, d);
+      c.drawImage(P.img, P.sx, 0, P.sw || 40, P.sh || 40, px + (ps - d) / 2, py + (ps - d) / 2, d, d);
       c.restore();
       c.strokeStyle = GOLD; c.lineWidth = 3;
       c.beginPath(); c.moveTo(px + sk * 0.5, py); c.lineTo(px + ps + sk * 0.5, py); c.lineTo(px + ps - sk * 0.5, py + ps); c.lineTo(px - sk * 0.5, py + ps); c.closePath(); c.stroke();
@@ -319,12 +323,12 @@ export class Director {
     const W = Math.min(v.w * 0.62, 460), sk = 18, off = (1 - u) * -(W + 40);
     c.save(); c.translate(off, 0);
     c.beginPath(); c.moveTo(0, y); c.lineTo(W + sk, y); c.lineTo(W, y + H); c.lineTo(0, y + H); c.closePath();
-    c.fillStyle = 'rgba(22,18,46,0.94)'; c.fill();
+    c.fillStyle = 'rgba(7,28,44,0.94)'; c.fill();
     c.fillStyle = L.col; c.fillRect(0, y, 8, H);
     c.fillStyle = GOLD; c.fillRect(0, y + H - 3, W, 3);
     const P = this.portrait(L.f, 'win');
     let tx = 24;
-    if (P) { c.imageSmoothingEnabled = false; c.drawImage(P.img, P.sx, 0, 40, 40, 20, y + 8, H - 16, H - 16); c.strokeStyle = GOLD; c.lineWidth = 2; c.strokeRect(20, y + 8, H - 16, H - 16); tx = H + 16; }
+    if (P) { c.imageSmoothingEnabled = !!P.hd; c.drawImage(P.img, P.sx, 0, P.sw || 40, P.sh || 40, 20, y + 8, H - 16, H - 16); c.strokeStyle = GOLD; c.lineWidth = 2; c.strokeRect(20, y + 8, H - 16, H - 16); tx = H + 16; }
     c.textAlign = 'left';
     c.font = `italic 900 ${Math.round(H * 0.46)}px ${F_COND}`; c.fillStyle = CREAM; c.fillText(L.title, tx, y + H * 0.52);
     c.font = `600 ${Math.round(H * 0.2)}px ${F_SEMI}`; c.fillStyle = L.win ? GOLD : DIM; c.fillText(L.sub, tx + 2, y + H * 0.82);
@@ -339,7 +343,7 @@ export class Director {
     c.beginPath();
     if (left) { c.moveTo(x0, y); c.lineTo(x0 + W, y); c.lineTo(x0 + W - 12, y + H); c.lineTo(x0, y + H); }
     else { c.moveTo(x0 + 12, y); c.lineTo(x0 + W, y); c.lineTo(x0 + W, y + H); c.lineTo(x0, y + H); }
-    c.closePath(); c.fillStyle = 'rgba(22,18,46,0.92)'; c.fill();
+    c.closePath(); c.fillStyle = 'rgba(7,28,44,0.92)'; c.fill();
     c.fillStyle = C.col; c.fillRect(left ? x0 : x0 + W - 4, y, 4, H);
     const px = left ? x0 + 8 : x0 + W - 8 - (H - 8);
     if (C.img) { c.save(); c.beginPath(); c.rect(px, y + 4, H - 8, H - 8); c.clip(); const ar = C.img.width / C.img.height; c.drawImage(C.img, px, y + 4, (H - 8) * Math.max(1, ar), H - 8); c.restore(); }

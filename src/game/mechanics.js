@@ -5,6 +5,7 @@
 // grabs, summons, buffs, barriers and a few named special behaviours.
 import { clamp, angDiff, dirFromAngle, segDist, TAU } from '../core/util.js';
 import { CONTENT } from './content.js';
+import { COMBAT } from './combat.js';
 
 export const TIER = {
   light: { cost: 12, cd: 0, recover: 4, startup: 12 },
@@ -15,27 +16,50 @@ export const TIER = {
 };
 
 // ---------------------------------------------------------------- move lifecycle
-export function startMove(f, m, slot) {
-  const S = f.sim;
+// o.si: this is hit 1, 2 or 3 (0..2) of the basic-attack string. o.chain: cancelled into from a hit.
+// o.dash: a basic attack out of a dodge (dash strike).
+export function startMove(f, m, slot, o = {}) {
+  const S = f.sim, C = COMBAT;
+  const basic = o.si !== undefined, si = o.si || 0, B = Object.assign({}, C.basic, m.basic || {});
+  const speed = f.actSpeed ? f.actSpeed() : 1;
   f.setState('act');
   const animDef = f.animDef(m.anim);
-  const wind = m.windup ? m.windup.t : 0;
-  const startup = Math.max(wind + 4, Math.round((m.startup ?? TIER[m.tier].startup) / (f.actSpeed ? f.actSpeed() : 1)));
+  let wind = m.windup ? m.windup.t : 0;
+  let startup = Math.max(wind + 4, Math.round((m.startup ?? TIER[m.tier].startup) / speed));
+  const kind0 = m.steps[0] ? m.steps[0].k : '';
+  // (a dash basic travels to its target after the start-up, so its start-up is shorter)
+  if (basic) { wind = 0; startup = Math.max(3, Math.round((B.startup[si] - (kind0 === 'dash' ? 3 : 0)) / speed)); }
+  else if (o.chain) { wind = Math.round(wind * C.chain.startup); startup = Math.max(C.chain.minStartup, wind + 3, Math.round(startup * C.chain.startup)); }
   const animHit = animDef ? animDef.hitT : 8;
   const animLen = animDef ? animDef.total : 24;
   const pre = Math.max(1, startup - wind);                 // ticks from body-anim start to contact
-  const s1 = animHit > 0 ? Math.min(1.6, animHit / pre) : 0; // anim speed before contact (0 = hold first frame)
+  const s1 = animHit > 0 ? Math.min(basic || o.chain ? 3.2 : 1.6, animHit / pre) : 0; // anim speed before contact (0 = hold first frame)
   let lastStep = 0;
   for (const st of m.steps) lastStep = Math.max(lastStep, (typeof st.at === 'number' ? st.at : 0) + (st.busy || 0));
-  const after = Math.max(4, animLen - animHit);
-  const end = startup + Math.max(after, lastStep) + (m.recover ?? TIER[m.tier].recover);
-  f.move = { def: m, slot, t: 0, hitT: startup, end, cancelT: startup + (m.cancelAfter ?? 8), fired: new Set(), set: S.newSet(), drive: null, ult: m.tier === 'ult', s1, wind };
+  // recovery: a basic hit is short and fixed; a special plays out its animation, capped so a miss is punishable, not endless
+  const after = basic ? 5 : Math.min(C.chain.maxAfter, Math.max(4, animLen - animHit));
+  const end = startup + Math.max(after, lastStep) + (basic ? B.recover[si] : (m.recover ?? TIER[m.tier].recover));
+  const first = m.steps[0], kind = first ? first.k : '';
+  const heavy = !basic && (m.tier === 'heavy' || m.tier === 'sig');
+  f.move = { def: m, slot, t: 0, hitT: startup, end, cancelT: startup + (m.cancelAfter ?? 8), fired: new Set(), set: S.newSet(), act: S.newSet(), drive: null, ult: m.tier === 'ult', s1, wind,
+    basic, si, B, chain: !!o.chain, dash: !!o.dash, landedT: -99, linkT: startup + B.link, armorT: heavy || m.tier === 'ult' ? startup + C.armor.extra : -1,
+    clashable: m.tier !== 'ult' && (kind === 'melee' || kind === 'dash'), snap: 0 };
   f.aim = f.aimAtFoe() + (f.aimErr ? (S.rng() - 0.5) * 2 * f.aimErr : 0);
   f.faceAngle(f.aim);
-  if (m.windup) { f.setAnim(m.windup.anim || 'Charge', { loop: true }); if (m.windup.fx) S.fx(m.windup.fx, f, { at: 'center', follow: true, ticks: m.windup.t, layer: 'front' }); }
+  // contact attacks pull their user to the target, so a press in range is a hit, not a swing at the air
+  if (kind === 'melee' || kind === 'grab') f.move.snap = o.dash ? B.snapDash : basic || o.chain ? B.snap : B.snapSpecial;
+  // a chained special connects: the target stays stunned through the shortened start-up (until stun decay ends the combo)
+  const foe = f.foe;
+  // (that includes the time a dash, a shot or a short leap needs to get there)
+  if (o.chain && foe && foe.alive && (foe.state === 'hurt' || foe.hitstun > 0) && !(foe.flags.stunImmune > S.tick) && (foe.stunLoad || 0) < 56) {
+    const d = S.reach(foe, f.x, f.y);
+    const travel = kind === 'proj' ? d / (first.speed || 5) : kind === 'dash' ? Math.min(first.ticks || 12, d / Math.max(2, (first.dist || 100) / (first.ticks || 12))) : kind === 'leap' || kind === 'lob' ? (first.ticks || 24) : kind === 'line' || kind === 'area' ? (first.delay || 0) : 0;
+    foe.hitstun = Math.max(foe.hitstun, Math.min(startup + 3 + Math.ceil(travel), C.chain.maxStun));
+  }
+  if (m.windup && !basic) { f.setAnim(m.windup.anim || 'Charge', { loop: true }); if (m.windup.fx) S.fx(m.windup.fx, f, { at: 'center', follow: true, ticks: wind, layer: 'front' }); }
   else f.setAnim(m.anim, { speed: s1 });
   if (m.sfxStart) S.sfx(m.sfxStart, f);
-  S.ev({ e: 'moveCall', f, name: m.name, type: m.type, ult: m.tier === 'ult', tier: m.tier, id: m.id });
+  S.ev({ e: 'moveCall', f, name: m.name, type: m.type, ult: m.tier === 'ult', tier: m.tier, id: m.id, basic, si, chain: !!o.chain, dash: !!o.dash, armor: heavy });
   if (m.tier === 'sig' || m.tier === 'ult') S.ev({ e: 'portrait', f, mood: 'Determined' });
 }
 
@@ -43,12 +67,20 @@ export function updateMove(f) {
   const S = f.sim, mv = f.move, m = mv && mv.def;
   if (!mv) { f.setState('idle'); return; }
   mv.t++;
-  if (m.windup && mv.t === mv.wind) f.setAnim(m.anim, { speed: mv.s1 });
+  if (m.windup && !mv.basic && mv.t === mv.wind) f.setAnim(m.anim, { speed: mv.s1 });
   if (mv.t === mv.hitT) { f.anim.speed = 1; if (m.sfx) S.sfx(m.sfx, f); }
   if (mv.t < mv.hitT) {
     // keep facing the target during startup (auto-aim)
-    const want = f.aimAtFoe(); const turn = m.track || 0.12;
+    const want = f.aimAtFoe(); const turn = mv.basic || mv.chain ? 0.5 : m.track || 0.12;
     f.aim += clamp(angDiff(f.aim, want), -turn, turn); f.dir = dirFromAngle(f.aim);
+    // snap: close the distance during start-up so the hit lands (re-aimed every tick, never through walls)
+    if (mv.snap > 0) {
+      const o = f.foe, st0 = m.steps[0];
+      if (o && o.alive && o.onField && !o.hidden() && !o.flags.intangible) {
+        const need = S.reach(o, f.x, f.y) - ((st0.range || 26) - 5);
+        if (need > 0 && need <= mv.snap) { const sp = Math.min(mv.B.snapSpeed, need / Math.max(1, mv.hitT - mv.t)); mv.drive = { vx: Math.cos(want) * sp, vy: Math.sin(want) * sp, t: 2, stopOnWall: true }; }
+      }
+    }
   }
   for (let i = 0; i < m.steps.length; i++) {
     const st = m.steps[i];
@@ -73,13 +105,28 @@ export function updateMove(f) {
 // ---------------------------------------------------------------- helpers
 export function spec(f, m, st, extra) {
   const ult = m.tier === 'ult';
-  return Object.assign({
+  const sp = Object.assign({
     att: f, power: st.power ?? m.power, type: st.type || m.type, cat: m.cat === 'status' ? 'special' : m.cat, kb: st.kb ?? 2, stun: st.stun ?? 14,
     set: st.newSet ? f.sim.newSet() : f.move ? f.move.set : f.sim.newSet(), status: st.status || m.status, fx: st.hitFx || m.hitFx, ult, moveId: m.id,
     drain: st.drain, multi: !!st.multi, heavy: st.heavy ?? (m.tier === 'heavy' || m.tier === 'sig' || ult),
     crit: m.crit || 0, superVs: m.superVs, dual: m.dual, launch: st.launch, defDown: st.defDown, contact: m.cat === 'physical',
   }, extra || {});
+  // the basic string: light, close hits building to a finisher that sends the target flying
+  const mv = f.move;
+  if (mv) {
+    sp.act = mv.act;
+    if (mv.basic && mv.def === m) {
+      const B = mv.B, i = mv.si;
+      sp.basic = true; sp.si = i; sp.finisher = i === 2;
+      sp.power *= B.power[i] * (mv.dash ? B.dashPower : 1); sp.kb = (sp.kb ?? 2) * B.kb[i]; sp.stun = B.stun[i]; sp.heavy = i === 2;
+      // a side effect (burn, flinch...) rides on the finisher only
+      if (i < 2) { sp.status = null; sp.launch = 0; sp.defDown = 0; }
+      else if (sp.status) { const h = {}; for (const [k, v] of Object.entries(sp.status)) h[k] = typeof v === 'number' ? v * 0.5 : Object.assign({}, v, { chance: (v.chance ?? 1) * 0.5 }); sp.status = h; }
+    }
+  }
+  return sp;
 }
+function ang0(f) { f.aim = f.aimAtFoe(); f.faceAngle(f.aim); }
 function originPoint(f, at) {
   if (at === 'head') return f.headPoint();
   if (at === 'center') return f.centerPoint();
@@ -111,7 +158,10 @@ export function runStep(f, st, m) {
     case 'buff': return buff(f, st, m);
     case 'barrier': return barrier(f, st, m);
     case 'wall': return wall(f, st, m);
-    case 'blink': return blink(f, st, m);
+    case 'blink':
+      // in a basic string only the opening hit blinks in, and only from a distance
+      if (f.move && f.move.basic && (f.move.si > 0 || !f.foe || S.reach(f.foe, f.x, f.y) < 34)) return;
+      return blink(f, st, m);
     case 'leap': return leap(f, st, m);
     case 'grab': return grab(f, st, m);
     case 'summon': return summon(f, st, m);
@@ -128,13 +178,19 @@ export function runStep(f, st, m) {
 function melee(f, st, m) {
   const S = f.sim;
   if (st.lunge) f.move.drive = { vx: Math.cos(f.aim) * st.lunge / (st.lungeT || 6), vy: Math.sin(f.aim) * st.lunge / (st.lungeT || 6), t: st.lungeT || 6, stopOnWall: true };
-  const hits = st.hits || 1, interval = st.interval || 5, active = st.active || 6, range = st.range || 26, arc = st.arc || 1.9;
+  const basic = f.move.basic;
+  const hits = basic ? 1 : st.hits || 1, interval = st.interval || 5, active = st.active || 6, range = basic ? Math.max(st.range || 26, COMBAT.basic.reach) : st.range || 26, arc = st.arc || 1.9;
   const set = f.move.set;
   if (st.swipe) S.fx(st.swipe, f, { at: 'front', dist: range * 0.6, dirAng: f.aim, frameTime: st.swipeFT || 2, layer: 'front' });
   let landed = 0;
   S.act(f, {
     ticks: hits > 1 ? interval * (hits - 1) + active : active, bound: true, n: 0,
     update(a) {
+      // a basic swing knocks ordinary projectiles out of the air
+      if (basic) for (const p of S.projs) {
+        if (p.dead || p.owner.side === f.side || p.big > 1 || p.lob) continue;
+        if (Math.hypot(p.x - f.x, p.y - f.y) <= range + p.r && Math.abs(angDiff(f.aim, Math.atan2(p.y - f.y, p.x - f.x))) <= arc / 2 + 0.25) { p.dead = true; f.move.swatted = true; f.addHeat(COMBAT.heat.swat); f.stats.swats = (f.stats.swats || 0) + 1; S.ev({ e: 'clash', x: p.x, y: p.y, z: p.z, swat: f }); }
+      }
       const o = f.foe; if (!o || !o.alive) return;
       const per = hits > 1 ? Math.floor((a.t - 1) / interval) : 0;
       if (per >= hits || a.n > per) return;
@@ -144,10 +200,10 @@ function melee(f, st, m) {
       if (d <= range && Math.abs(angDiff(f.aim, ang)) <= arc / 2 + 0.25) {
         let power = (st.power ?? m.power);
         if (st.rampHits) power *= 1 + st.rampHits * landed;
-        if (st.stacking) { const k = f.tv.swipeStack = (S.tick - (f.tv.swipeT || -999) < 120) ? Math.min(5, (f.tv.swipeStack || 0) + 1) : 0; f.tv.swipeT = S.tick; power *= 1 + 0.22 * k; }
+        if (st.stacking) { const k = f.tv.swipeStack = (S.tick - (f.tv.swipeT || -999) < 90) ? Math.min(6, (f.tv.swipeStack || 0) + 1) : 0; f.tv.swipeT = S.tick; power *= 1 + 0.08 * k; }
         let status = undefined;
         if (st.fakeout) { if (S.tick - (f.enteredT || -999) < 90 || S.tick - (f.lastDodgeT || -999) < 60) status = { flinch: { chance: 1, ticks: 40 } }; }
-        const sp = spec(f, m, st, { set: hits > 1 ? S.newSet() : set, x: o.x, y: o.y - 10, kbAng: f.aim, power, multi: hits > 1 && per < hits - 1, stun: hits > 1 && per > 0 ? 6 : st.stun ?? 14, noFlinch: hits > 1 && per > 0 && per < hits - 1 });
+        const sp = spec(f, m, st, { set: hits > 1 ? S.newSet() : set, x: o.x, y: o.y - 10, kbAng: f.aim, power, multi: hits > 1 && per < hits - 1, stun: hits > 1 && per > 0 ? 6 : st.stun ?? 14, noFlinch: hits > 1 && per > 0 && per < hits - 1, clash: hits === 1 });
         if (status) sp.status = Object.assign({}, sp.status || {}, status);
         if (S.hit(f, o, sp)) { a.n = per + 1; landed++; if (st.onHit) st.onHit(f, o, S); }
       }
@@ -157,7 +213,9 @@ function melee(f, st, m) {
 
 // dash: drive the fighter forward with a body hitbox (Dragon Rush, Flare Blitz, Extreme Speed, Mach Punch)
 function dash(f, st, m) {
-  const S = f.sim;
+  const S = f.sim, basic = f.move.basic;
+  // a dash used as the basic attack is a short hop to the target: no invulnerability, no pins or rebounds
+  if (basic) { st = Object.assign({}, st, { dist: Math.min(st.dist || 100, f.move.si === 2 ? 78 : 52), invuln: false, unstoppable: false, chain: 0, pin: false, bounceBack: 0, recoil: 0, resetOnHit: false, ramp: 0 }); ang0(f); }
   let ang = f.aim;
   const ticks = st.ticks || 12, dist = st.dist || 100, start = { x: f.x, y: f.y };
   let speedMul = 1;
@@ -168,7 +226,8 @@ function dash(f, st, m) {
   f.flags.dashing = S.tick + ticks;
   let chain = st.chain || 1;
   const total = st.chain ? ticks * st.chain + 10 * (st.chain - 1) + 8 : ticks;
-  f.move.end = Math.max(f.move.end, f.move.t + total + (m.recover ?? 8));
+  f.move.end = Math.max(f.move.end, f.move.t + total + (basic ? f.move.B.recover[f.move.si] - 3 : m.recover ?? 8));
+  if (basic) f.move.linkT = f.move.t + ticks;
   let hitAny = false;
   S.act(f, {
     ticks: total, bound: true, carried: false, hitOnce: false, pause: 0,
@@ -190,7 +249,7 @@ function dash(f, st, m) {
         const rampMul = st.ramp ? 1 + st.ramp * travelled / 100 : 1;
         let power = (st.power ?? m.power) * rampMul;
         if (st.rollout) power *= 1 + 0.35 * Math.min(4, f.tv.rollout || 0);
-        const sp = spec(f, m, st, { x: o.x, y: o.y - 10, kbAng: ang, power, kb: st.pin ? 0 : st.kb ?? 4, stun: st.pin ? 40 : st.stun ?? 18 });
+        const sp = spec(f, m, st, { x: o.x, y: o.y - 10, kbAng: ang, power, kb: st.pin ? 0 : st.kb ?? 4, stun: st.pin ? 40 : st.stun ?? 18, clash: !st.pin && !st.invuln && !st.unstoppable });
         if (S.hit(f, o, sp)) {
           a.hitOnce = true; hitAny = true;
           if (!f.move) return;   // countered / interrupted
@@ -200,7 +259,7 @@ function dash(f, st, m) {
           if (st.rollout) f.tv.rollout = Math.min(4, (f.tv.rollout || 0) + 1);
           if (st.pin) { a.carried = true; o.hurt(70, ang); f.move.drive.t = Math.max(f.move.drive.t, 14); f.move.drive.stopOnWall = true; S.ev({ e: 'pin', f, o }); }
           else if (st.bounceBack) { ang += Math.PI; f.faceAngle(ang + Math.PI); f.move.drive = { vx: Math.cos(ang) * st.bounceBack / 10, vy: Math.sin(ang) * st.bounceBack / 10, t: 10 }; }
-          else if (st.stopOnHit !== false) { f.move.drive = null; f.kvx -= Math.cos(ang) * 1.2; f.kvy -= Math.sin(ang) * 1.2; }
+          else if (st.stopOnHit !== false) { f.move.drive = null; if (!basic) { f.kvx -= Math.cos(ang) * 1.2; f.kvy -= Math.sin(ang) * 1.2; } }
           if (chain > 1 && st.chain && !st.pin) { chain--; a.pause = 10; f.move.drive = { vx: -Math.cos(ang) * 2.2, vy: -Math.sin(ang) * 2.2, t: 8 }; }
         }
       }
@@ -220,6 +279,8 @@ function dash(f, st, m) {
 // projectile(s)
 function projectile(f, st, m) {
   const S = f.sim;
+  // as the basic attack: one shot, one shot, then a fan of three (whatever volley the move normally fires)
+  if (f.move.basic) { const fin = f.move.si === 2; st = Object.assign({}, st, { count: fin ? 3 : 1, spread: 0.2, gap: 0, jitter: 0, newSetEach: false, ring: false, r: (st.r || 7) * (fin ? 1.15 : 1), speed: (st.speed || 4) * (fin ? 1.1 : 1) }); }
   const n = st.count || 1, spread = st.spread ?? 0.25;
   // launch height: between the mouth and the body centre, so shots read as aimed at the target's body
   const from = originPoint(f, st.from || 'head'), mid = originPoint(f, 'center');
@@ -271,9 +332,12 @@ function projectile(f, st, m) {
 
 // beam / stream: a ray from the user, damaging along its length (Flamethrower, Solar Beam, Hydro Pump, Aurora Beam)
 function beam(f, st, m) {
-  const S = f.sim;
+  const S = f.sim, basic = f.move.basic;
+  // as the basic attack: a short puff per hit, a longer breath for the finisher
+  if (basic) st = Object.assign({}, st, { ticks: f.move.si === 2 ? 14 : 7, interval: 8, sweep: 0, ramp: 0, recoil: 0 });
   const ticks = st.ticks || 30, interval = st.interval || 8;
-  f.move.end = Math.max(f.move.end, f.move.t + ticks + (m.recover ?? 8));
+  f.move.end = Math.max(f.move.end, f.move.t + ticks + (basic ? 4 : m.recover ?? 8));
+  if (basic) f.move.linkT = f.move.t + ticks;
   let len = 0, ang = f.aim + (st.side || 0) * 0.4, hitsLanded = 0, nextHit = 1;
   const set = st.newSet ? S.newSet() : null;
   const ray = { x0: 0, y0: 0, x1: 0, y1: 0, w: st.width || 12, z: 8, ang, len: 0, name: st.beam, stream: st.stream, ft: st.streamFT || 2, t: 0, ticks, id: S.newSet() };
@@ -337,7 +401,9 @@ function strikes(f, st, m) {
     const delay = (st.delay || 40) + i * (st.gap || 12);
     const sp = spec(f, m, st, { set: set || S.newSet(), power: (st.power ?? m.power) * hpMul });
     const zs = { id: S.newSet(), owner: f, x, y, r: st.r || 26, t: 0, delay, ticks: 1, interval: 1, spec: sp, st, set: sp.set, burst: st.burst, fall: st.fall, tele: st.tele, moveId: m.id, type: st.type || m.type };
+    // (trackEvery: every n-th strike follows the target until just before it lands, so a rain of strikes has to be dodged, not walked away from)
     if (st.pattern === 'lead' || st.track) zs.trackTarget = { o, until: delay - 16 };
+    else if (st.trackEvery && i % st.trackEvery === 0) zs.trackTarget = { o, until: delay - 13, speed: 1.7 };
     S.zones.push(zs);
     S.ev({ e: 'tele', x, y, r: zs.r, ticks: delay, name: st.tele || 'target', fall: st.fall, zone: zs, owner: f });
   }

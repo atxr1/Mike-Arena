@@ -96,7 +96,7 @@ export class FX {
           this.spawn(name, ev.x, ev.tgt.y, { z: ev.tgt.y - ev.y, layer: 'front' });
           if (ev.eff > 1 && !ev.multi) this.spawn('Hit_Super_Effective', ev.x, ev.tgt.y + 1, { z: ev.tgt.y - ev.y, layer: 'front' });
           if (ev.dmg > 0) this.number(ev.tgt, ev.dmg, ev.eff > 1 ? 'yellow' : ev.eff < 1 ? 'green' : 'yellow', ev.multi);
-          if (ev.heavy && !ev.multi) { this.shake(ev.ult ? 7 : 4); if (ev.eff > 1 || ev.ult) this.speedLines = 7; this.cheer = Math.max(this.cheer, 50); }
+          if (ev.heavy && !ev.multi) { this.shake(ev.ult ? 7 : ev.finisher ? 3 : 4); if ((ev.eff > 1 && !ev.basic) || ev.ult) this.speedLines = 7; this.cheer = Math.max(this.cheer, ev.finisher ? 30 : 50); }
           else if (!ev.multi) this.shake(1.5);
           // cinematic contact: impact star, debris along the knockback, a shock ring; type-coloured screen tint on big hits
           if (!ev.multi && ev.dmg > 0) {
@@ -105,11 +105,13 @@ export class FX {
               this.star(ev.x, ev.tgt.y, z, ev.ult ? 22 : 15, tc);
               this.debris(S, ev.tgt.x, ev.tgt.y, z, ev.ult ? 14 : 9, ang, ev.ult ? 1.6 : 1.1, ev.type);
               this.shock(ev.x, ev.tgt.y, z, ev.ult ? 34 : 22, '#ffffff', 12, 1);
-              if ((ev.eff > 1 || ev.ult) && !this.reduced) this.tint = { col: tc, t: 0, dur: 4 };
+              if (((ev.eff > 1 && !ev.basic) || ev.ult) && !this.reduced) this.tint = { col: tc, t: 0, dur: 4 };
             } else {
-              this.star(ev.x, ev.tgt.y, z, 8, tc);
-              this.debris(S, ev.tgt.x, ev.tgt.y, z, 3, ang, 0.6, ev.type);
+              this.star(ev.x, ev.tgt.y, z, ev.basic ? 6 + ev.si * 2 : 8, tc);
+              this.debris(S, ev.tgt.x, ev.tgt.y, z, ev.basic ? 2 : 3, ang, 0.6, ev.type);
             }
+            // the finisher of a basic string: a type-coloured ring and a burst of debris along the launch
+            if (ev.finisher && !ev.armored) { this.shock(ev.x, ev.tgt.y, z, 30, tc, 14, 2); this.debris(S, ev.tgt.x, ev.tgt.y, z, 6, ang, 1.4, ev.type); this.speedLines = Math.max(this.speedLines, 4); }
           }
           if (S.env === 'water' && !ev.multi) this.spawn('Water_Spout_Splash', ev.tgt.x, ev.tgt.y, { layer: 'front' });
           break;
@@ -127,8 +129,19 @@ export class FX {
         case 'ghost': if (ev.f.animFrame()) this.ghosts.push({ f: ev.f, x: ev.f.x, y: ev.f.y, z: ev.f.z, frame: ev.f.animFrame(), sprite: ev.f.spriteId, t: 0 }); if (this.ghosts.length > 24) this.ghosts.shift(); break;
         case 'blink': this.spawn(ev.fx || 'Puff_White', ev.x0, ev.y0, { z: 10 }); this.spawn(ev.fx || 'Puff_White', ev.x1, ev.y1, { z: 10 }); break;
         case 'flash': this.flash = Math.max(this.flash, ev.n || 4); break;
-        case 'breakout': this.text('Breakout!', ev.f.x, ev.f.y - 34, '#9fe8ff'); this.spawn('Circle_White_Out', ev.f.x, ev.f.y, { z: 12 }); break;
-        case 'clash': this.spawn('Charge_Beam_Hit', ev.x, ev.y, { z: ev.z || 10 }); this.spawn('Captivate_Sparkle', ev.x, ev.y, { z: ev.z || 10 }); this.flash = 3; this.shake(3); this.text('CLASH!', ev.x, ev.y - 20, '#ffffff'); break;
+        case 'breakout': this.spawn('Circle_White_Out', ev.f.x, ev.f.y, { z: 12 }); this.shock(ev.f.x, ev.f.y, 10, ev.paid ? 54 : 40, '#9fe8ff', 16, 2); if (ev.paid) { this.shock(ev.f.x, ev.f.y, 10, 34, '#ffffff', 12, 2); this.shake(3); } break;
+        case 'counterHit': { const gold = ev.kind === 'counter'; this.shock(ev.x, ev.tgt.y, ev.tgt.y - ev.y, gold ? 36 : 28, gold ? '#ffd25a' : '#ff9a5c', 14, 2); this.spawn('Captivate_Sparkle', ev.x, ev.tgt.y, { z: ev.tgt.y - ev.y }); this.speedLines = Math.max(this.speedLines, 5); this.shake(3); this.cheer = Math.max(this.cheer, 60); if (!this.reduced && gold) this.flash = Math.max(this.flash, 2); break; }
+        case 'getUp': this.shock(ev.f.x, ev.f.y, 2, 26, '#ffffff', 14, 1); break;
+        case 'armor': this.spawn('Metal_Burst_Hit', ev.x, ev.f.y, { z: ev.f.y - ev.y }); this.shock(ev.x, ev.f.y, ev.f.y - ev.y, 20, '#cfe3ff', 10, 2); break;
+        case 'dashStrike': { const fr = ev.f.animFrame(); if (fr) for (let i = 1; i <= 3; i++) this.ghosts.push({ f: ev.f, x: ev.f.x - Math.cos(ev.f.aim) * i * 7, y: ev.f.y - Math.sin(ev.f.aim) * i * 5, z: ev.f.z, frame: fr, sprite: ev.f.spriteId, t: i * 2 }); this.dust(S, ev.f.x, ev.f.y, 6, 12); break; }
+        case 'chain': this.shock(ev.f.x, ev.f.y, 12, 18, '#ffffff', 8, 1); break;
+        case 'onFire': { this.shock(ev.f.x, ev.f.y, 10, 60, '#ff8a3d', 24, 2); this.shock(ev.f.x, ev.f.y, 10, 40, '#ffe36e', 18, 2); this.spawn('Charge_Up|Fire', ev.f.x, ev.f.y, { follow: ev.f, layer: 'back' }); this.cheer = 200; this.shake(3); break; }
+        case 'clash':
+          this.spawn(ev.swat ? 'Captivate_Sparkle' : 'Charge_Beam_Hit', ev.x, ev.y, { z: ev.z || 10 });
+          if (ev.swat) break;
+          this.spawn('Captivate_Sparkle', ev.x, ev.y, { z: ev.z || 10 }); if (!this.reduced) this.flash = 3; this.shake(3);
+          if (ev.melee) { this.shock(ev.x, ev.y, 10, 34, '#ffffff', 14, 2); this.debris(S, ev.x, ev.y, 10, 10, undefined, 1.4, 'Steel'); this.cheer = Math.max(this.cheer, 80); }
+          break;
         case 'perfect': this.spawn('Screen_Sparkle_RSE', ev.f.x, ev.f.y, { z: 14, follow: ev.f }); ctx && ctx.callout && ctx.callout('Perfect dodge!', '#ffe36e'); break;
         case 'perfectHit': this.spawn('Captivate_Sparkle', ev.f.x, ev.f.y, { z: 14 }); break;
         case 'wallSlam': this.spawn('Rock_Smash', ev.x, ev.y, { z: 6 }); this.spawn('Puff_Brown', ev.x, ev.y, { z: 2 }); this.shake(5); this.speedLines = 5; this.cheer = Math.max(this.cheer, 70); if (ev.dmg) this.number(ev.f, ev.dmg, 'yellow'); ctx && ctx.callout && ctx.callout('Wall slam!', '#ffb347'); break;
@@ -264,6 +277,10 @@ export class FX {
       const m = f.move, tier = m && m.def.tier;
       // charge aura while a Signature move or an Ultimate winds up
       if (m && (tier === 'sig' || tier === 'ult') && m.def.id !== 'mega' && !this.auraSeen.has(m) && m.t < 30) { this.auraSeen.add(m); this.spawn('Charge_Up|' + (m.def.type || f.types[0]), f.x, f.y, { follow: f, layer: 'back' }); }
+      // armour: a steel-blue ring pulses under a heavy move while it cannot be flinched by basic hits
+      if (m && m.armorT >= 0 && m.t <= m.armorT && m.t % 5 === 1) this.shock(f.x, f.y, 2, f.r + 12, '#cfe3ff', 8, 1);
+      // on fire: embers rise off the fighter
+      if (f.fire > 0 && this.tick % 2 === 0) { const c = f.centerPoint(); this.chips.push({ kind: 'dust', x: f.x + (crnd() - 0.5) * (f.r * 2 + 4), y: f.y + (crnd() - 0.5) * 4, z: (f.y - c.y) * crnd() * 1.6 + f.z, vx: (crnd() - 0.5) * 0.3, vy: 0, vz: 0.5 + crnd() * 0.6, col: ['#ffe36e', '#ffb347', '#ff6a3d'][(crnd() * 3) | 0], t: 0, life: 12 + (crnd() * 10 | 0), w: crnd() < 0.4 ? 2 : 1, h: crnd() < 0.3 ? 2 : 1 }); }
       const sp = Math.hypot(f.vx || 0, f.vy || 0), kb = Math.hypot(f.kvx || 0, f.kvy || 0);
       // knockback trail: afterimages while flung across the arena
       if (kb > 2.4 && this.tick % 2 === 0 && f.animFrame()) { this.ghosts.push({ f, x: f.x, y: f.y, z: f.z, frame: f.animFrame(), sprite: f.spriteId, t: 2 }); if (this.ghosts.length > 24) this.ghosts.shift(); }

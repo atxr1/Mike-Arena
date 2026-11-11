@@ -51,7 +51,7 @@ for (const [id, m] of Object.entries(MOVES)) {
   if (m.tier !== 'ult' && !(m.cost > 0) && m.cost !== 0) fail(`move ${id}: no stamina cost`);
   // tier rules (brief §7): cost and cooldown ranges; utility moves (buffs, shields, heals, counters, sleep) may
   // use longer cooldowns so they can't be kept up permanently — see DECISIONS.md
-  const RANGE = { light: [10, 14, 0, 0], medium: [18, 26, 18, 36], heavy: [30, 40, 72, 120], sig: [45, 55, 180, 240] };
+  const RANGE = { light: [10, 14, 0, 60], medium: [18, 26, 18, 36], heavy: [30, 40, 72, 120], sig: [45, 55, 180, 240] };
   const utility = ['buff', 'heal', 'defend', 'reflect', 'absorb', 'counter', 'smoke', 'trap', 'wall'].includes(m.ai && m.ai.kind) || !(m.power > 0) || (m.status && m.status.sleep);
   if (RANGE[m.tier] && !id.startsWith('pb_')) {
     const [c0, c1, d0, d1] = RANGE[m.tier];

@@ -1,6 +1,7 @@
 // Balance tuner: plays AI-vs-AI Pokémon Battles in every environment and nudges each fighter's per-environment
 // HP and damage multipliers toward a 50% win rate (HP capped to 0.8-1.25, the rest in damage), then writes src/content/balance.js.
-// Usage: bun tools/tune.mjs [--rounds 6] [--games 60] [--from current]
+// Usage: bun tools/tune.mjs [--rounds 6] [--games 60] [--fresh] [--env ground,air] [--json out.json]
+//        bun tools/tune.mjs --merge a.json,b.json   (two runs on separate environments, merged into balance.js)
 // Each round every fighter plays `games` matches against the rest of its environment's roster (all maps).
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { registerContent, addSpriteMeta, ROSTER } from '../src/content/index.js';
@@ -41,12 +42,16 @@ function save() {
   writeFileSync(new URL('../src/content/balance.js', import.meta.url).pathname,
     `// Per-environment balance multipliers, written by tools/tune.mjs from AI-vs-AI results (see docs/DECISIONS.md).\n// key "env:fighter" -> { hp, dmg }; hp stays within 0.8-1.25 so roles keep their shape. Missing entries mean 1.\nexport const BALANCE = {\n${Object.entries(out).map(([k, v]) => `  '${k}': { hp: ${v.hp}, dmg: ${v.dmg} },`).join('\n')}\n};\n`);
 }
-if (!ROUNDS) save();
+const ENVS = args.env ? String(args.env).split(',') : Object.keys(ROSTER);
+if (args.merge) { for (const f of String(args.merge).split(',')) Object.assign(BALANCE, JSON.parse(readFileSync(f, 'utf8'))); save(); console.log('merged', args.merge); process.exit(0); }
+const saveBalance = save;
+const saveRun = () => (args.json ? writeFileSync(String(args.json), JSON.stringify(Object.fromEntries(Object.entries(BALANCE).filter(([k]) => ENVS.includes(k.split(':')[0]))))) : saveBalance());
+if (!ROUNDS) saveRun();
 
 let seedBase = +(args.seed || 77);
 for (let round = 1; round <= ROUNDS; round++) {
   const rates = {}, lens = {};
-  for (const env of Object.keys(ROSTER)) {
+  for (const env of ENVS) {
     const ids = ROSTER[env], wins = {}, games = {};
     lens[env] = [];
     let r = 0;
@@ -77,5 +82,5 @@ for (let round = 1; round <= ROUNDS; round++) {
   const med = (a) => a.sort((x, y) => x - y)[Math.floor(a.length / 2)].toFixed(1);
   console.log(`round ${round}: medians ${Object.entries(lens).map(([e, l]) => e + ' ' + med(l) + 's').join(', ')}`);
   console.log('  ' + report.map(([k, v]) => `${k.split(':')[1]}@${k[0]} ${(v * 100).toFixed(0)}`).join('  '));
-  save();
+  saveRun();
 }

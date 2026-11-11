@@ -5,7 +5,7 @@ const OLD_NS = 'arena.';      // the original Arena on the same origin: its save
 export const SCHEMA = { settings: 3, records: 1, tournament: 1, last: 1, arcade: 1 };
 export const DEFAULTS = {
   settings: { v: 3, music: 0.7, sfx: 0.85, lowHpBeep: true, touchSize: 1, touchOpacity: 0.85, leftHanded: false, pixelBars: false, hitboxes: false, devOverlay: false, reducedMotion: false, cinematics: 'full', skipIntros: false },
-  records: { v: 1, wins: 0, losses: 0, draws: 0, byFighter: {}, championships: 0, played: 0, streak: 0, bestStreak: 0, fastestWin: null, arcadeBest: {} },
+  records: { v: 1, wins: 0, losses: 0, draws: 0, byFighter: {}, championships: 0, played: 0, streak: 0, bestStreak: 0, fastestWin: null, arcadeBest: {}, mastery: {}, bestCombo: 0, bestRank: '' },
   tournament: null,
   arcade: null,
   last: { v: 1, env: 'ground', format: 'pokemon', fighter: 'charizard', trainer: 'ash', opponent: 'random', map: 'random', level: 'normal', size: 8 },

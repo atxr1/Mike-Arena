@@ -99,9 +99,10 @@ export class TouchControls {
     const kit = f.kit(), sig = [];
     for (let i = 0; i < 4; i++) {
       const m = CONTENT.moves[kit[i]]; const cd = f.cds[i] > 0 ? f.cds[i] / Math.max(1, m.cd) : 0;
-      sig.push(m.id, f.stamina >= m.cost ? 1 : 0, Math.ceil(cd * 8));
+      sig.push(m.id, f.stamina >= f.moveCost(i) ? 1 : 0, Math.ceil(cd * 8));
     }
-    sig.push(f.ult >= 100 ? 1 : 0, Math.floor(f.ult / 10), f.form, f.dodgeCd > 0 ? 1 : 0, f.sp.trav || '', f.tv && f.tv.charges, S.sides[side].switchCd > 0 ? 1 : 0, S.sides[side].team.map((t) => (t.alive ? 1 : 0) + (t === f ? 2 : 0)).join(''));
+    const chainOpen = f.canChainNow();
+    sig.push(chainOpen ? 1 : 0, f.canBreak() ? 1 : 0, f.ult >= 100 ? 1 : 0, Math.floor(f.ult / 10), f.form, f.dodgeCd > 0 ? 1 : 0, f.sp.trav || '', f.tv && f.tv.charges, S.sides[side].switchCd > 0 ? 1 : 0, S.sides[side].team.map((t) => (t.alive ? 1 : 0) + (t === f ? 2 : 0)).join(''));
     const s = sig.join('|');
     if (s === this.lastSig) return;
     this.lastSig = s;
@@ -109,22 +110,29 @@ export class TouchControls {
     faces.forEach((b, i) => {
       const m = CONTENT.moves[kit[i]];
       b.querySelector('.t-lbl').textContent = m.name;
-      b.querySelector('.t-cost').textContent = m.cost;
+      const cost = f.moveCost(i);
+      b.querySelector('.t-cost').textContent = cost || '';
+      b.classList.toggle('basic', cost === 0);
       b.style.setProperty('--tc', TYPE_COLORS[m.type]);
       const cd = f.cds[i] > 0 ? f.cds[i] / Math.max(1, m.cd) : 0;
-      b.classList.toggle('dim', f.stamina < m.cost || cd > 0);
+      b.classList.toggle('dim', cost > 0 && (f.stamina < cost || cd > 0));
       b.querySelector('.t-cd').style.setProperty('--cd', (cd * 360).toFixed(0) + 'deg');
       b.classList.toggle('cooling', cd > 0);
+      // the chain window is open: every special that can come out right now lights up
+      b.classList.toggle('chain', chainOpen && cost > 0 && cd <= 0 && f.stamina >= cost && i !== f.chainFrom());
     });
     const L = this.el.querySelector('.t-L');
     L.classList.toggle('ready', f.ult >= 100);
+    L.classList.toggle('chain', chainOpen && f.ult >= 100);
     L.style.setProperty('--ult', Math.min(100, f.ult) + '%');
     const canMega = f.sp.mega && f.form !== 'mega' && !S.sides[side].megaUsed;
     L.querySelector('.t-lbl').textContent = canMega ? (f.sp.mega.primal ? 'Primal' : 'Mega') : 'Ultimate';
     const Rb = this.el.querySelector('.t-R');
     const T = f.T, repl = T && (typeof T.replacesDodge === 'function' ? T.replacesDodge(f) : T.replacesDodge);
-    Rb.querySelector('.t-lbl').textContent = repl ? TRAV_LABEL[f.sp.trav] || 'Move' : 'Dodge';
-    Rb.classList.toggle('dim', f.dodgeCd > 0);
+    const brk = f.canBreak();
+    Rb.querySelector('.t-lbl').textContent = brk ? 'Break!' : repl ? TRAV_LABEL[f.sp.trav] || 'Move' : 'Dodge';
+    Rb.classList.toggle('dim', !brk && f.dodgeCd > 0);
+    Rb.classList.toggle('ready', brk);
     const forme = this.el.querySelector('.t-forme'); forme.hidden = !f.sp.formes;
     const strip = this.el.querySelector('.t-switch');
     if (trainerMode) {

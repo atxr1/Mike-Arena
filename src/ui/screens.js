@@ -13,6 +13,7 @@ import { TRAV_LABEL } from './touch.js';
 import { createTournament, currentMatch, recordResult, tourStep, pendingSims, roundName, ROUND_NAMES } from '../modes/tournament.js';
 import { createArcade, recordArcade, stageScore, arcadeRank, arcadeWins, ARCADE_LEVELS } from '../modes/arcade.js';
 import { MATCH } from '../game/sim.js';
+import { styleOf, levelFor } from '../modes/mastery.js';
 import { confetti } from '../render/pixelart.js';
 import { VERSION } from '../version.js';
 
@@ -24,7 +25,7 @@ const ENV_INFO = {
 const LEVELS = { easy: 'Slower reactions, gentler attacks.', normal: 'A fair fight.', hard: 'Fast reactions, perfect dodges, no mercy.' };
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const chips = (types) => `<span class="chips">${types.map((t) => `<span class="chip" style="background:${TYPE_COLORS[t]}">${t.toUpperCase()}</span>`).join('')}</span>`;
-const portrait = (sprite, size = 40) => `<i class="pi" style="display:inline-block;width:${size}px;height:${size}px;background:url(assets/fighters/${sprite}-portraits.png) 0 0/auto ${size}px;image-rendering:pixelated;border-radius:3px"></i>`;
+const portrait = (sprite, size = 40) => `<img class="pi" src="assets/visual/portraits/${sprite}.webp" alt="" width="${size}" height="${size}" style="width:${size}px;height:${size}px;object-fit:contain">`;
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
 const clock = (secs) => `${Math.floor(secs / 60)}:${String(Math.floor(secs % 60)).padStart(2, '0')}`;
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
@@ -77,7 +78,7 @@ export class Screens {
     const lastLabel = last.format === 'pokemon' ? `${CONTENT.species[last.fighter].name} vs ${last.opponent === 'random' ? 'a random rival' : CONTENT.species[last.opponent] ? CONTENT.species[last.opponent].name : 'a random rival'}` : `${CONTENT.trainers[last.trainer].name}'s team vs ${last.opponent === 'random' || !CONTENT.trainers[last.opponent] ? 'a random trainer' : CONTENT.trainers[last.opponent].name}`;
     const rec = this.store.read('records');
     const el = this.app.setScreen(`<div class="screen mainmenu">
-      <div class="mm-art" style="background-image:url(assets/ui/title.png)"><div class="badge">Mike Arena</div></div>
+      <div class="mm-art" style="background-image:url(assets/ui/title.png)"><div class="badge">Mike<br>Arena</div><img class="menu-fighter" src="assets/visual/portraits/charizard.webp" alt=""><img class="menu-partner" src="assets/visual/portraits/pikachu.webp" alt=""></div>
       <div class="mm-list">
         <button class="mm-item quick nav" data-go="again">Fight again<small>${esc(lastLabel)} · ${ENV_INFO[last.env].name}</small></button>
         <button class="mm-item nav" data-go="quick">Quick Battle<small>Pick a fighter or a trainer and battle now</small></button>
@@ -128,7 +129,7 @@ export class Screens {
   envStep(c) {
     this.cfg = c;
     const el = this.app.setScreen(`<div class="screen">${this.bar(this.modeName(c), 'Choose where to battle')}
-      <div class="cards">${Object.entries(ENV_INFO).map(([k, v]) => `<button class="card nav" data-env="${k}" style="background-image:url(assets/maps/${v.thumb}-thumb.png)"><b>${v.name}</b><span>${v.blurb}</span><span>${ROSTER[k].length} fighters · 4 arenas</span></button>`).join('')}</div>
+      <div class="cards">${Object.entries(ENV_INFO).map(([k, v]) => `<button class="card nav" data-env="${k}" style="background-image:url(assets/visual/maps/${v.thumb}-thumb.webp)"><img class="card-art" src="assets/visual/portraits/${{ground:'charizard',water:'lugia',air:'rayquaza'}[k]}.webp" alt=""><b>${v.name}</b><span>${v.blurb}</span><span>${ROSTER[k].length} fighters · 4 arenas</span></button>`).join('')}</div>
       ${this.footer(false)}</div>`, { back: () => this.main(), focus: `[data-env="${c.env}"]` });
     for (const b of el.querySelectorAll('[data-env]')) b.addEventListener('click', () => { if (c.env !== b.dataset.env) { c.env = b.dataset.env; c.fighter = ROSTER[c.env].includes(c.fighter) ? c.fighter : ROSTER[c.env][0]; c.opponent = 'random'; c.map = 'random'; } if (c.mode === 'training') this.fighterStep(c); else this.formatStep(c); });
   }
@@ -136,8 +137,8 @@ export class Screens {
     this.cfg = c;
     const el = this.app.setScreen(`<div class="screen">${this.bar('Format', this.crumbs(c))}
       <div class="cards">
-        <button class="card nav" data-f="pokemon" style="background-image:url(assets/maps/${MAPS_BY_ENV[c.env][1]}-thumb.png)"><b>Pokémon Battle</b><span>One on one. 99-second clock.</span></button>
-        <button class="card nav" data-f="trainer" style="background-image:url(assets/maps/${MAPS_BY_ENV[c.env][2]}-thumb.png)"><b>Trainer Battle</b><span>Three on three, one at a time. Switch Pokémon mid-battle. 4-minute clock.</span></button>
+        <button class="card nav" data-f="pokemon" style="background-image:url(assets/visual/maps/${MAPS_BY_ENV[c.env][1]}-thumb.webp)"><b>Pokémon Battle</b><span>One on one. 99-second clock.</span></button>
+        <button class="card nav" data-f="trainer" style="background-image:url(assets/visual/maps/${MAPS_BY_ENV[c.env][2]}-thumb.webp)"><b>Trainer Battle</b><span>Three on three, one at a time. Switch Pokémon mid-battle. 4-minute clock.</span></button>
       </div>${this.footer(false)}</div>`, { back: () => this.envStep(c), focus: `[data-f="${c.format}"]` });
     for (const b of el.querySelectorAll('[data-f]')) b.addEventListener('click', () => { c.format = b.dataset.f; if (c.format === 'pokemon') this.fighterStep(c); else this.trainerStep(c); });
   }
@@ -147,7 +148,8 @@ export class Screens {
     const roster = ROSTER[c.env];
     const cur = opponent ? c.opponent : c.fighter;
     const vs = opponent ? c.fighter : (c.opponent !== 'random' && roster.includes(c.opponent) ? c.opponent : null);
-    const cells = `<button class="cell random nav" data-id="random" data-hover="1">?<span class="nm">Random</span></button>` + roster.map((id) => { const s = CONTENT.species[id]; return `<button class="cell nav" data-id="${id}" data-hover="1" style="--tc:${TYPE_COLORS[s.types[0]]}">${portrait(s.sprite)}<span class="nm">${s.name}</span></button>`; }).join('');
+    const mast = this.store.read('records').mastery || {};
+    const cells = `<button class="cell random nav" data-id="random" data-hover="1">?<span class="nm">Random</span></button>` + roster.map((id) => { const s = CONTENT.species[id], xp = !opponent && mast[id]; return `<button class="cell nav" data-id="${id}" data-hover="1" style="--tc:${TYPE_COLORS[s.types[0]]}">${portrait(s.sprite)}${xp ? `<span class="lv">${levelFor(xp).level}</span>` : ''}<span class="nm">${s.name}</span></button>`; }).join('');
     const title = opponent ? 'Opponent' : c.mode === 'tour' ? 'Your fighter' : 'Your fighter';
     const el = this.app.setScreen(`<div class="screen">${this.bar(title, this.crumbs(c))}
       <div class="select"><div class="grid">${cells}</div><div class="detail" id="detail"></div></div>${this.footer(true)}</div>`,
@@ -172,16 +174,20 @@ export class Screens {
       const m = CONTENT.moves[mid];
       let tag = '';
       if (vs && m.power > 0) { let raw = rawEffect(m.type, vs.types); if (m.dual) raw *= rawEffect(m.dual, vs.types); if (m.type === 'Ground' && (vs.levitate || this.cfg && this.cfg.env === 'air')) raw = 0; const e = arenaEffect(raw); tag = e === 0 ? '<span class="tag no">NO EFFECT</span>' : e > 1 ? '<span class="tag se">SUPER</span>' : e < 1 ? '<span class="tag nve">RESISTED</span>' : ''; }
-      return `<div class="mv">${face(SLOT_BUTTON[i], 20)}<div><b style="color:${TYPE_COLORS[m.type]}">${m.name}</b>${tag}<br><em>${m.tier === 'sig' ? 'Signature · ' : ''}${m.cost} stamina · ${esc(m.desc || '')}</em></div></div>`;
+      const basic = i === 0 && m.tier === 'light';
+      if (basic && tag.includes('NO EFFECT')) tag = '<span class="tag nve">RESISTED</span>';   // the basic attack always connects
+      return `<div class="mv">${face(SLOT_BUTTON[i], 20)}<div><b style="color:${TYPE_COLORS[m.type]}">${m.name}</b>${tag}<br><em>${basic ? 'Basic attack · free · ' : (m.tier === 'sig' ? 'Signature · ' : m.tier === 'heavy' ? 'Heavy · ' : '') + m.cost + ' stamina · '}${esc(m.desc || '')}</em></div></div>`;
     }).join('');
     const ult = CONTENT.moves[s.ult];
     const mega = s.mega ? `${s.mega.primal ? 'Primal Reversion' : 'Mega Evolves'} into ${s.mega.name}, then ` : '';
     const trav = s.trav ? `<div class="trav">${shoulder('R', 16)} ${TRAV_LABEL[s.trav] || ''}: ${esc(TRAV_TEXT[s.trav] || '')}</div>` : '';
     const B = s.base || {}, stat = (k, label) => `<span>${label}</span><i style="--v:${Math.min(1, (B[k] || 0) / 160).toFixed(3)}"></i>`;
     const myRec = !opponent && this.store.read('records').byFighter[id];
-    const recLine = myRec ? `<span class="role rec">Your record: ${plural(myRec.w, 'win', 'wins')}, ${plural(myRec.l, 'loss', 'losses')}</span>` : '';
+    const mxp = !opponent && (this.store.read('records').mastery || {})[id];
+    const mlv = mxp ? levelFor(mxp) : null;
+    const recLine = (myRec || mlv) ? `<span class="role rec">${mlv ? `Mastery ${mlv.level} · ${mlv.title}` : ''}${mlv && myRec ? ' · ' : ''}${myRec ? `${plural(myRec.w, 'win', 'wins')}, ${plural(myRec.l, 'loss', 'losses')}` : ''}</span>` : '';
     const stats = `<div class="stats6">${stat('hp', 'HP')}${stat('atk', 'Atk')}${stat('def', 'Def')}${stat('spa', 'SpA')}${stat('spd', 'SpD')}${stat('spe', 'Spe')}</div>`;
-    return `<div class="hero" style="--tc:${TYPE_COLORS[s.types[0]]}"><canvas class="big" data-sprite="${s.sprite}" data-anim="${this.cfg && this.cfg.env === 'air' ? 'Walk' : 'Idle'}"></canvas><div class="who"><b>${s.name}</b><span class="role">${s.role} — ${ROLE_INFO[s.role.split('/')[0]] || ''}</span>${chips(s.types)}${recLine}</div>${stats}</div>
+    return `<div class="hero" style="--tc:${TYPE_COLORS[s.types[0]]}"><img class="hero-art" src="assets/visual/portraits/${s.sprite}.webp" alt=""><div class="who"><b>${s.name}</b><span class="role">${s.role} — ${ROLE_INFO[s.role.split('/')[0]] || ''}</span>${chips(s.types)}${recLine}</div>${stats}</div>
       <div class="moves">${moves}</div>
       <div class="ult">${shoulder('L', 16)} Ultimate: ${mega}${esc(ult ? ult.name : '')}</div>${trav}${vs ? `<div class="trav" style="color:#b9b0d6">Matchup tags: ${opponent ? 'its' : 'your'} moves against ${vs.name}.</div>` : ''}`;
   }
@@ -197,7 +203,7 @@ export class Screens {
       if (k === 'random') { det.innerHTML = `<div class="hero"><div class="who"><b>Random</b><span class="role">A surprise trainer</span></div></div>`; return; }
       const t = CONTENT.trainers[k], team = t.teams[c.env];
       det.innerHTML = `<div class="hero"><img class="tportrait" src="assets/trainers/${t.portrait}.png" alt=""><div class="who"><b>${t.name}</b><span class="role">${t.title}</span><div class="trav">${esc(t.intro)}</div></div></div>
-        <div class="team">${team.map((id) => `<canvas data-sprite="${CONTENT.species[id].sprite}"></canvas>`).join('')}</div>
+        <div class="team">${team.map((id) => `<img src="assets/visual/portraits/${CONTENT.species[id].sprite}.webp" alt="">`).join('')}</div>
         <div class="moves">${team.map((id) => { const s = CONTENT.species[id]; return `<div class="mv"><div><b>${s.name}</b> ${chips(s.types)}<em>${s.role}</em></div></div>`; }).join('')}</div>`;
       this.app.paintSprites(det);
     };
@@ -216,8 +222,8 @@ export class Screens {
     this.cfg = c;
     const ids = MAPS_BY_ENV[c.env];
     const el = this.app.setScreen(`<div class="screen">${this.bar('Arena', this.crumbs(c))}
-      <div class="maps"><button class="mapc random nav" data-id="random"><img alt="" src="data:image/gif;base64,R0lGODlhAQABAAAAACw="><div><b>Random</b><span>Any of the four ${ENV_INFO[c.env].name.toLowerCase()} arenas</span></div></button>
-      ${ids.map((id) => { const m = CONTENT.maps[id]; return `<button class="mapc nav" data-id="${id}"><img src="assets/maps/${id}-thumb.png" alt=""><div><b>${m.name}</b><span>${m.region} · ${esc(m.feature ? FEATURE_INFO[m.feature] : 'A roaring crowd cheers every big hit.')}</span></div></button>`; }).join('')}</div>
+      <div class="maps"><button class="mapc random nav" data-id="random"><img alt="" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"><div><b>Random</b><span>Any of the four ${ENV_INFO[c.env].name.toLowerCase()} arenas</span></div></button>
+      ${ids.map((id) => { const m = CONTENT.maps[id]; return `<button class="mapc nav" data-id="${id}"><img src="assets/visual/maps/${id}-thumb.webp" alt=""><div><b>${m.name}</b><span>${m.region} · ${esc(m.feature ? FEATURE_INFO[m.feature] : 'A roaring crowd cheers every big hit.')}</span></div></button>`; }).join('')}</div>
       ${this.footer(true)}</div>`, { back: () => (c.format === 'pokemon' ? this.fighterStep(c, true) : this.trainerStep(c, true)), focus: `[data-id="${c.map || 'random'}"]` });
     for (const b of el.querySelectorAll('[data-id]')) b.addEventListener('click', () => { c.map = b.dataset.id; if (c.mode === 'training') this.launchTraining(c); else this.levelStep(c); });
     this.wireFightNow(el, c);
@@ -225,7 +231,7 @@ export class Screens {
   sizeStep(c) {
     this.cfg = c;
     const el = this.app.setScreen(`<div class="screen">${this.bar('Bracket size', this.crumbs(c))}
-      <div class="cards">${[4, 8, 16].map((n) => `<button class="card nav" data-n="${n}" style="background-image:url(assets/maps/${MAPS_BY_ENV[c.env][n === 4 ? 0 : n === 8 ? 1 : 3]}-thumb.png)"><b>${n} entrants</b><span>${ROUND_NAMES[n].length} rounds: ${ROUND_NAMES[n].join(', ')}</span></button>`).join('')}</div>${this.footer(true)}</div>`,
+      <div class="cards">${[4, 8, 16].map((n) => `<button class="card nav" data-n="${n}" style="background-image:url(assets/visual/maps/${MAPS_BY_ENV[c.env][n === 4 ? 0 : n === 8 ? 1 : 3]}-thumb.webp)"><b>${n} entrants</b><span>${ROUND_NAMES[n].length} rounds: ${ROUND_NAMES[n].join(', ')}</span></button>`).join('')}</div>${this.footer(true)}</div>`,
     { back: () => (c.format === 'pokemon' ? this.fighterStep(c) : this.trainerStep(c)), focus: `[data-n="${c.size || 8}"]` });
     for (const b of el.querySelectorAll('[data-n]')) b.addEventListener('click', () => { c.size = +b.dataset.n; this.levelStep(c); });
     this.wireFightNow(el, c);
@@ -233,7 +239,7 @@ export class Screens {
   levelStep(c) {
     this.cfg = c;
     const el = this.app.setScreen(`<div class="screen">${this.bar('CPU difficulty', this.crumbs(c))}
-      <div class="cards">${Object.entries(LEVELS).map(([k, v]) => `<button class="card nav" data-l="${k}" style="background-image:url(assets/maps/${MAPS_BY_ENV[c.env][k === 'easy' ? 0 : k === 'normal' ? 2 : 3]}-thumb.png)"><b>${k[0].toUpperCase() + k.slice(1)}</b><span>${v}</span></button>`).join('')}</div>${this.footer(false)}</div>`,
+      <div class="cards">${Object.entries(LEVELS).map(([k, v]) => `<button class="card nav" data-l="${k}" style="background-image:url(assets/visual/maps/${MAPS_BY_ENV[c.env][k === 'easy' ? 0 : k === 'normal' ? 2 : 3]}-thumb.webp)"><b>${k[0].toUpperCase() + k.slice(1)}</b><span>${v}</span></button>`).join('')}</div>${this.footer(false)}</div>`,
     { back: () => (c.mode === 'tour' ? this.sizeStep(c) : this.mapStep(c)), focus: `[data-l="${c.level || 'normal'}"]` });
     for (const b of el.querySelectorAll('[data-l]')) b.addEventListener('click', () => { c.level = b.dataset.l; c.mode === 'tour' ? this.launchTour(c) : this.launchQuick(c); });
   }
@@ -263,12 +269,12 @@ export class Screens {
   async runBattle(setup, ctx) {
     this.app.audio.unlock();
     if (this.app.test && this.app.test.autoplay) { setup = JSON.parse(JSON.stringify(setup)); setup.sides[0].control = 'cpu'; setup.sides[0].level = 'hard'; setup.sides[0].auto = true; }
-    const tips = ['Every move costs stamina. Light moves are free to repeat; signature moves need a breather.', 'Dodge just before a hit lands for a perfect dodge and a stronger counter.', 'Knock a foe into a wall for bonus wall-slam damage.', 'In the last 30 seconds stamina regenerates twice as fast.', 'Fill the Ultimate ring with damage, then press L.', 'Type matchups matter: super effective hits deal 1.5×.', 'Two attacks that meet cancel out in a clash.', 'Pause and choose Moves to check what your Pokémon can do.', 'Stamina refills half as fast while you attack. Step back to recover.', 'Training has no clock and no knockouts: a good place to learn a new Pokémon.'];
+    const tips = ['Your basic attack is free. Tap it three times for a string that ends in a finisher.', 'The moment a hit lands, press a different special to chain straight into it.', 'With the ring full, press L right after a hit lands to cancel into your Ultimate.', 'Heavy and signature moves have armour as they start: basic hits will not stop them.', 'Dodge through an attack at the last moment for a perfect dodge. It gives stamina back.', 'A basic attack out of a dodge is a dash strike: it lunges a long way.', 'Caught in a combo? After three hits, R breaks you free for 35 stamina.', 'Hit a foe as it starts an attack for a counter hit.', 'Fill the heat gauge to go on fire: stamina refills more than twice as fast.', 'Knock a foe into a wall for a wall slam, then keep the combo going.', 'Type matchups matter: super effective hits deal 1.5×.', 'Two attacks that meet cancel out in a clash.', 'Landing basic hits refills your stamina. Attack to earn your specials.', 'Training has goals that teach every technique, one at a time.', 'A flickering opponent is getting up and cannot be hit. Back off: the next move is theirs.', 'Knocked down? You get up untouchable for a moment. Use it to strike first.', 'Your specials light up the moment a hit lands. That is the chain window.', 'An Ultimate cannot be interrupted once it starts, and it hits for up to a third of a health bar.', 'Tapping the basic attack is a touch faster than holding it.'];
     // half the time, a tip about the Pokémon you are about to use
     const mine = CONTENT.species[setup.sides[0].team[0]];
     if (mine && mine.trav && TRAV_TEXT[mine.trav] && Math.random() < 0.5) { tips.length = 0; tips.push(`${mine.name}: ${TRAV_LABEL[mine.trav] || 'R'} — ${TRAV_TEXT[mine.trav]}`); }
     const LM = CONTENT.maps[setup.map];
-    const el = this.app.setScreen(`<div class="screen loading" style="background-image:url(assets/maps/${LM.img}.png)"><h2>${LM.name}</h2><div class="ld-sub">${LM.region} · ${setup.title ? esc(setup.title) : setup.format === 'trainer' ? 'Trainer Battle' : 'Pokémon Battle'}</div><div class="bar"><i></i></div><div class="tip">${esc(pick(tips))}</div></div>`);
+    const el = this.app.setScreen(`<div class="screen loading" style="background-image:url(assets/visual/maps/${LM.img}.webp)"><h2>${LM.name}</h2><div class="ld-sub">${LM.region} · ${setup.title ? esc(setup.title) : setup.format === 'trainer' ? 'Trainer Battle' : 'Pokémon Battle'}</div><div class="bar"><i></i></div><div class="tip">${esc(pick(tips))}</div></div>`);
     const bar = el.querySelector('.bar i');
     this.app.audio.musicOff();
     const scene = new BattleScene(this.app, setup, {
@@ -304,6 +310,14 @@ export class Screens {
       fastest = !!rec.fastestWin;
       rec.fastestWin = { secs: Math.round(secs * 10) / 10, who: S.sides[me].trainer ? CONTENT.trainers[S.sides[me].trainer].name : S.sides[me].team[0].sp.name, env: S.env, format: S.format };
     }
+    // style: what the play was worth, the medals it earned, and mastery for every Pokémon that fought
+    const opp = setup.sides[1 - me] || {};
+    const style = styleOf(S, me, info.won, opp.control === 'cpu' ? opp.level : 'normal');
+    rec.mastery = rec.mastery || {};
+    const team0 = S.sides[me].team, share = Math.max(10, Math.round(style.points / (team0.length > 1 ? 2 : 1)));
+    const gains = team0.map((f) => { const before = rec.mastery[f.id] || 0, after = before + share; rec.mastery[f.id] = after; return { f, before, after, a: levelFor(before), b: levelFor(after) }; });
+    rec.bestCombo = Math.max(rec.bestCombo || 0, style.st.combo);
+    if ('SABCD'.indexOf(style.rank) < 'SABCD'.indexOf(rec.bestRank || 'E') || !rec.bestRank) rec.bestRank = style.rank;
     this.store.write('records', rec);
     // arcade: score the stage and save the run now (the app can be closed on this screen)
     if (ctx.kind === 'arcade' && !ctx.recorded) {
@@ -321,7 +335,10 @@ export class Screens {
     const rows = [];
     const all = S.sides.flatMap((sd) => sd.team), mvp = all.reduce((a, f) => (f.stats.dealt > a.stats.dealt ? f : a), all[0]);
     let ri = 0;
-    for (const [i, sd] of S.sides.entries()) for (const f of sd.team) rows.push(`<tr class="${i === me ? 'me' : ''}" style="--i:${ri++}"><td class="${f === mvp && f.stats.dealt > 0 ? 'mvp' : ''}">${f.sp.name}${f.form === 'mega' ? ' (Mega)' : ''}</td><td data-n="${f.stats.dealt}">${f.stats.dealt}</td><td>${f.stats.hits}</td><td>${f.stats.se}</td><td>${f.stats.perfect}</td><td>${f.stats.ults}</td><td>${Math.max(0, f.hp)}/${f.maxHp}</td></tr>`);
+    for (const [i, sd] of S.sides.entries()) for (const f of sd.team) rows.push(`<tr class="${i === me ? 'me' : ''}" style="--i:${ri++}"><td class="${f === mvp && f.stats.dealt > 0 ? 'mvp' : ''}">${f.sp.name}${f.form === 'mega' ? ' (Mega)' : ''}</td><td data-n="${f.stats.dealt}">${f.stats.dealt}</td><td>${f.stats.hits}</td><td>${f.stats.maxCombo}</td><td>${f.stats.counters + f.stats.punishes}</td><td>${f.stats.perfect}</td><td>${f.stats.ults}</td><td>${Math.max(0, f.hp)}/${f.maxHp}</td></tr>`);
+    const medals = style.medals.map((m, i) => `<div class="medal" style="--i:${i}"><b>${esc(m.title)}</b><span>${esc(m.sub)}</span></div>`).join('') || '<div class="medal none"><b>No medals this time</b><span>Combos, counters and perfect dodges earn them</span></div>';
+    const g0 = gains.reduce((a, g) => (g.b.level > g.a.level && !(a.b.level > a.a.level) ? g : a), gains[0]);
+    const mastery = `<div class="mast"><span class="mast-n">${g0.f.sp.name}${gains.length > 1 ? ' and team' : ''} · Mastery ${g0.b.level} · ${g0.b.title}</span><i><u style="--from:${(g0.b.level > g0.a.level ? 0 : g0.a.into / g0.a.need).toFixed(3)};--to:${(g0.b.into / g0.b.need).toFixed(3)}"></u></i><span class="mast-x">+${share}${g0.b.level > g0.a.level ? ' · Level up!' : ''}</span></div>`;
     const isTour = ctx.kind === 'tour', isArc = ctx.kind === 'arcade';
     const A = isArc ? this.store.read('arcade') : null;
     const meta = [`Battle time ${clock(secs)}`];
@@ -335,15 +352,17 @@ export class Screens {
     const leave = () => (isTour ? this.afterTourMatch(info) : isArc ? this.afterArcadeBattle() : this.main());
     const el = this.app.setScreen(`<div class="screen results">
       <div class="res-left" style="--tc:${TYPE_COLORS[star.types[0]] || '#ffd25a'}"><div class="res-banner ${info.draw ? 'draw' : info.won ? 'win' : 'lose'}">${info.draw ? 'Draw' : info.won ? 'Victory' : 'Defeat'}</div>
-        <canvas data-sprite="${star.spriteId}" data-anim="${star.meta && star.meta.anims.Pose ? 'Pose' : 'Idle'}"></canvas>
+        <img class="result-art" src="assets/visual/portraits/${star.spriteId}.webp" alt="">
         <div class="res-reason">${winSide ? `${winSide.trainer ? CONTENT.trainers[winSide.trainer].name + ' wins ' : star.sp.name + ' wins '}` : ''}${reason}</div>
         <div class="res-meta">${meta.join(' · ')}</div></div>
-      <div class="res-right"><h2>Battle stats</h2>${arcLine}<table class="stats"><tr><th>Pokémon</th><th>Damage</th><th>Hits</th><th>Super eff.</th><th>Perfect dodges</th><th>Ultimates</th><th>HP</th></tr>${rows.join('')}</table>
+      <div class="res-right"><div class="res-scroll"><div class="style-row"><div class="rank rank-${style.rank}"><small>Style</small><b>${style.rank}</b><span data-pts="${style.points}">${style.points}</span></div><div class="medals">${medals}</div></div>${mastery}${arcLine}<table class="stats"><tr><th>Pokémon</th><th>Damage</th><th>Hits</th><th>Best combo</th><th>Counters</th><th>Perfect dodges</th><th>Ultimates</th><th>HP</th></tr>${rows.join('')}</table></div>
         <div class="row" style="display:flex;gap:8px;flex-wrap:wrap">${buttons}</div>
       </div></div>`, { back: leave });
     this.app.scene = null;
     this.app.audio.playMusic('Aftermath');
-    // damage totals count up as the rows arrive
+    // style points and damage totals count up
+    const pts = el.querySelector('[data-pts]');
+    if (pts && !this.app.settings.reducedMotion) { const n = +pts.dataset.pts, t0 = performance.now() + 300; const step = (t) => { const u = Math.min(1, Math.max(0, (t - t0) / 800)); pts.textContent = String(Math.round(n * (1 - Math.pow(1 - u, 3)))); if (u < 1 && pts.isConnected) requestAnimationFrame(step); }; pts.textContent = '0'; requestAnimationFrame(step); }
     if (!this.app.settings.reducedMotion) for (const td of el.querySelectorAll('td[data-n]')) {
       const n = +td.dataset.n, t0 = performance.now() + 250 + 70 * +td.parentElement.style.getPropertyValue('--i');
       td.textContent = '0';
@@ -424,7 +443,7 @@ export class Screens {
   arcadeDone(A) {
     const rank = arcadeRank(A.score, arcadeWins(A));
     const ids = A.format === 'pokemon' ? [A.fighter] : CONTENT.trainers[A.trainer].teams[A.env];
-    const team = ids.map((id) => `<canvas data-sprite="${CONTENT.species[id].sprite}" data-anim="Pose" style="width:120px;height:110px"></canvas>`).join('');
+    const team = ids.map((id) => `<img src="assets/visual/portraits/${CONTENT.species[id].sprite}.webp" alt="">`).join('');
     const el = this.app.setScreen(`<div class="screen champion"><canvas id="confetti"></canvas>
       <div class="cup">Rank ${rank}</div><h2>${ENV_INFO[A.env].name} Arcade cleared with ${num(A.score)} points</h2>
       <div class="team" style="justify-content:center">${team}</div>
@@ -449,15 +468,15 @@ export class Screens {
     const total = rec.wins + rec.losses + rec.draws;
     const rate = (w, l) => (w + l ? Math.round(100 * w / (w + l)) + '%' : '—');
     const rows = Object.entries(rec.byFighter || {}).filter(([id]) => CONTENT.species[id]).sort((a, b) => b[1].w - a[1].w || a[1].l - b[1].l)
-      .map(([id, r]) => `<tr><td>${portrait(CONTENT.species[id].sprite, 20)} ${CONTENT.species[id].name}</td><td>${r.w}</td><td>${r.l}</td><td>${rate(r.w, r.l)}</td></tr>`).join('');
+      .map(([id, r]) => { const lv = levelFor((rec.mastery || {})[id] || 0); return `<tr><td>${portrait(CONTENT.species[id].sprite, 20)} ${CONTENT.species[id].name}</td><td>${lv.level} · ${lv.title}</td><td>${r.w}</td><td>${r.l}</td><td>${rate(r.w, r.l)}</td></tr>`; }).join('');
     const fw = rec.fastestWin;
-    const tiles = [['Battles', total], ['Wins', rec.wins], ['Losses', rec.losses], ['Draws', rec.draws], ['Win rate', rate(rec.wins, rec.losses)], ['Best streak', rec.bestStreak || 0], ['Championships', rec.championships], ['Fastest win', fw ? clock(fw.secs) : '—']];
+    const tiles = [['Battles', total], ['Wins', rec.wins], ['Losses', rec.losses], ['Win rate', rate(rec.wins, rec.losses)], ['Best streak', rec.bestStreak || 0], ['Best combo', rec.bestCombo || 0], ['Best style', rec.bestRank || '—'], ['Championships', rec.championships], ['Fastest win', fw ? clock(fw.secs) : '—']];
     const arc = Object.entries(rec.arcadeBest || {}).filter(([k]) => ENV_INFO[k.split(':')[0]]).map(([k, b]) => { const [env, fmt] = k.split(':'); return `<tr><td>${ENV_INFO[env].name} · ${fmt === 'pokemon' ? 'Pokémon' : 'Trainer'}</td><td>${num(b.score)}</td><td>${b.wins} of ${ARCADE_LEVELS.length}</td><td>${b.rank || '—'}</td></tr>`; }).join('');
     const el = this.app.setScreen(`<div class="screen">${this.bar('Records', fw ? `Fastest win: ${esc(fw.who)} in ${clock(fw.secs)}` : 'Everything you have won so far')}
       <div class="records nav" tabindex="0">
         <div class="tiles">${tiles.map(([k, v]) => `<div class="tile"><b>${v}</b><span>${k}</span></div>`).join('')}</div>
         <div class="rec-cols">
-          <section><h3>Pokémon</h3>${rows ? `<table class="stats"><tr><th>Pokémon</th><th>Wins</th><th>Losses</th><th>Win rate</th></tr>${rows}</table>` : '<p>Win a battle to start your records.</p>'}</section>
+          <section><h3>Pokémon</h3>${rows ? `<table class="stats"><tr><th>Pokémon</th><th>Mastery</th><th>Wins</th><th>Losses</th><th>Win rate</th></tr>${rows}</table>` : '<p>Win a battle to start your records.</p>'}</section>
           <section><h3>Arcade best runs</h3>${arc ? `<table class="stats"><tr><th>Ladder</th><th>Points</th><th>Stages won</th><th>Rank</th></tr>${arc}</table>` : '<p>Finish an Arcade battle to set a best run.</p>'}</section>
         </div>
       </div>${prompt([['circle', 'Back']])}</div>`, { back });
@@ -524,7 +543,7 @@ export class Screens {
   }
   championship(T) {
     const champ = T.champion;
-    const team = champ.team.map((id) => `<canvas data-sprite="${CONTENT.species[id].sprite}" data-anim="${'Pose'}" style="width:120px;height:110px"></canvas>`).join('');
+    const team = champ.team.map((id) => `<img src="assets/visual/portraits/${CONTENT.species[id].sprite}.webp" alt="">`).join('');
     const el = this.app.setScreen(`<div class="screen champion"><canvas id="confetti"></canvas>
       <div class="cup">Champion!</div><h2>${esc(champ.name)} won the ${ENV_INFO[T.env].name} ${T.format === 'pokemon' ? 'Pokémon' : 'Trainer'} Cup</h2>
       <div class="team" style="justify-content:center">${team}</div>
@@ -566,10 +585,20 @@ export class Screens {
     const row = (g, txt) => `<dt>${g}</dt><dd>${txt}</dd>`;
     const el = this.app.setScreen(`<div class="screen">${this.bar('Controls', 'Touch, controller and keyboard all do the same things')}
       <div class="ctrl">
-        <section><h3>Touch</h3><dl>${row(nub(22), 'Drag anywhere on the left to move')}${row(face('cross', 22) + face('square', 22) + face('triangle', 22) + face('circle', 22), 'Your four moves (cost shown on each)')}${row(shoulder('R', 20), 'Dodge, or your special movement')}${row(shoulder('L', 20), 'Ultimate / Mega Evolution when the ring glows')}${row(pill('START', 18), 'Pause')}${row(pill('SELECT', 18), 'Emotes')}${row('<b>Balls</b>', 'Switch Pokémon (Trainer Battle)')}</dl></section>
+        <section><h3>Touch</h3><dl>${row(nub(22), 'Drag anywhere on the left to move')}${row(face('cross', 22) + face('square', 22) + face('triangle', 22) + face('circle', 22), 'Basic attack on ' + face('cross', 16) + ', three specials on the rest')}${row(shoulder('R', 20), 'Dodge, or your special movement')}${row(shoulder('L', 20), 'Ultimate / Mega Evolution when the ring glows')}${row(pill('START', 18), 'Pause')}${row(pill('SELECT', 18), 'Emotes')}${row('<b>Balls</b>', 'Switch Pokémon (Trainer Battle)')}</dl></section>
         <section><h3>Controller</h3><dl>${row(nub(22), 'Move')}${row(face('cross', 22) + face('square', 22) + face('triangle', 22) + face('circle', 22), 'Moves')}${row(shoulder('R', 20), 'Dodge / movement (hold for Latios\'s jets)')}${row(shoulder('L', 20), 'Ultimate')}${row(dpad('left', 22) + dpad('right', 22), 'Switch Pokémon')}${row(dpad('up', 22) + dpad('down', 22), 'Deoxys forme change')}${row(pill('SELECT', 18), 'Emote, then a face button')}${row(pill('START', 18), 'Pause')}</dl></section>
         <section><h3>Keyboard</h3><dl>${row('<kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>', 'Move')}${row('<kbd>K</kbd><kbd>J</kbd><kbd>I</kbd><kbd>L</kbd>', face('cross', 18) + face('square', 18) + face('triangle', 18) + face('circle', 18) + ' moves')}${row('<kbd>Space</kbd> / <kbd>Shift</kbd>', shoulder('R', 16) + ' dodge')}${row('<kbd>Q</kbd>', shoulder('L', 16) + ' Ultimate')}${row('<kbd>E</kbd>', pill('SELECT', 14) + ' emote')}${row('<kbd>F</kbd>', 'Deoxys forme')}${row('<kbd>1</kbd><kbd>2</kbd><kbd>3</kbd>', 'Switch Pokémon')}${row('<kbd>Esc</kbd>', pill('START', 14) + ' pause')}</dl></section>
-        <section style="grid-column:1/-1"><h3>Battle basics</h3><p style="margin:0;font:500 13px/1.45 var(--semi);color:#e4dcff">One stamina bar powers everything: light moves cost little and have no cooldown; heavy and signature moves cost more and need a short cooldown. Stamina refills about 28 per second, starting 0.4 s after you spend it, half as fast while attacking or hurt. Dodge (${shoulder('R', 14)}) costs 12. Dodge right before a hit for a perfect dodge — time slows and your next hit is stronger. Two attacks that meet cancel out with a clash. Knock a foe into a wall for a wall slam. In the last 30 seconds stamina regenerates twice as fast.</p></section>
+        <section style="grid-column:1/-1"><h3>How to fight</h3><ul class="basics">
+          <li><b>${face('cross', 14)} Basic attack.</b> Free, no cooldown. Tap or hold for a three-hit string; the third hit is a Finisher that knocks the target down. Landing basic hits gives stamina back. A tap is a touch faster than holding.</li>
+          <li><b>${face('square', 14)}${face('triangle', 14)}${face('circle', 14)} Specials.</b> They cost stamina and have cooldowns.</li>
+          <li><b>Chains.</b> The moment any hit lands, your specials light up: press one to cancel straight into it. With the ring full, ${shoulder('L', 14)} cancels into your Ultimate.</li>
+          <li><b>Knockdown.</b> A Finisher, an Ultimate or a long combo knocks the target down. It gets up flickering: it cannot be hit and the next move is its to make, so back off or get ready to dodge.</li>
+          <li><b>Armour.</b> Heavy and signature moves cannot be interrupted by basic hits while they start up (a steel-blue ring shows it). An Ultimate cannot be interrupted at all.</li>
+          <li><b>${shoulder('R', 14)} Dodge.</b> Dodge through an attack at the last moment for a perfect dodge: time slows, stamina comes back and your next hit is stronger. A basic attack out of a dodge is a dash strike.</li>
+          <li><b>${shoulder('R', 14)} Break.</b> Three hits into a combo against you, ${shoulder('R', 14)} bursts you free for 35 stamina.</li>
+          <li><b>Counter hits.</b> Hit a foe while it starts an attack, or punish it while it recovers, for extra damage.</li>
+          <li><b>Heat.</b> Good play fills the orange gauge under your HP. Full means on fire: stamina refills more than twice as fast for 7 seconds.</li>
+          <li>Two attacks that meet clash. Knock a foe into a wall for a wall slam. In the last 30 seconds stamina refills twice as fast.</li></ul></section>
       </div>${prompt([['circle', 'Back']])}</div>`, { back });
     el.tabIndex = -1;
   }
@@ -593,6 +622,7 @@ export class Screens {
         <h3>Battle data</h3><p>Smogon pokemon-showdown (MIT): learnsets, moves, Pokédex stats and the type chart.</p>
         <h3>Tools and libraries</h3><p>ZzFX by Frank Force (MIT) for procedural sounds. proper-pixel-art by Kenneth Allen (MIT) for pixel-grid recovery. Barlow typefaces by Jeremy Tribby (SIL OFL).</p>
         <h3>Original PSP build assets</h3><p>Sunset stadium title art, trainer portraits, court slabs, Poké Ball banners, Kanto island map and the 25 PSP sound effects from the earlier PSP version of this game.</p>
+        <h3>League Atelier visuals</h3><p>Painted title stadium, the twelve arena paintings, the menu theme and the icon set were made for this game with ChatGPT. Character illustrations in the menus, the HUD and the cut-ins are official Pokémon artwork (via the PokeAPI sprites collection); they belong to Nintendo, Creatures Inc. and GAME FREAK inc.</p>
         <h3>Arena backgrounds</h3><p>Bell Tower, Mt. Chimney, Spear Pillar, Cerulean Gym, Whirl Islands, Sootopolis, Azure Bay, Sky Pillar and Dragonspiral Tower images made for this game. Indigo Plateau Stadium${CONTENT.maps.lumiose ? ' and Lumiose Skyline' : ''} painted in code.</p>
       </div>${prompt([['circle', 'Back']])}</div>`, { back });
   }
@@ -620,7 +650,7 @@ export class Screens {
     const mv = d.querySelector('[data-a="moves"]');
     if (mv) mv.addEventListener('click', () => {
       const s = CONTENT.species[o.fighterId], again = () => { app.closeMenu(); app.menu('pause', o); };
-      const rows = s.kit.map((mid, i) => { const m = CONTENT.moves[mid]; return `<div class="mv">${face(SLOT_BUTTON[i], 20)}<div><b style="color:${TYPE_COLORS[m.type]}">${m.name}</b> <em>${m.type} · ${m.tier === 'sig' ? 'Signature · ' : ''}${m.cost} stamina${m.cd ? ` · ${(m.cd / 60).toFixed(1)} s cooldown` : ''}</em><br><em>${esc(m.desc || '')}</em></div></div>`; }).join('');
+      const rows = s.kit.map((mid, i) => { const m = CONTENT.moves[mid]; const basic = i === 0 && m.tier === 'light'; return `<div class="mv">${face(SLOT_BUTTON[i], 20)}<div><b style="color:${TYPE_COLORS[m.type]}">${m.name}</b> <em>${m.type} · ${basic ? 'Basic attack · free · three-hit string' : (m.tier === 'sig' ? 'Signature (armoured) · ' : m.tier === 'heavy' ? 'Heavy (armoured) · ' : '') + m.cost + ' stamina' + (m.cd ? ` · ${(m.cd / 60).toFixed(1)} s cooldown` : '')}</em><em style="display:block">${esc(m.desc || '')}</em></div></div>`; }).join('');
       const ult = CONTENT.moves[o.megaUsed && s.mega && s.mega.ult ? s.mega.ult : s.ult];
       panel.classList.add('wide');
       panel.innerHTML = `<h2>${s.name}'s moves</h2><div class="moves pm">${rows}</div>

@@ -6,11 +6,12 @@ import { CONTENT, resolveAnim, frameIndexAt } from './content.js';
 import { startMove, updateMove, TIER } from './mechanics.js';
 import { TRAVERSALS, PASSIVES } from './traversal.js';
 import { Serpent } from './serpent.js';
+import { COMBAT } from './combat.js';
 
 export const STAMINA_MAX = 100;
-export const STAMINA_REGEN = 28 / 60;      // per tick
-const STAMINA_DELAY = 24;                  // 0.4 s after a spend
-export const DODGE = { cost: 12, cd: 21, ticks: 22, iframes: 13 };
+export const STAMINA_REGEN = COMBAT.stamina.regen;      // per tick
+const STAMINA_DELAY = COMBAT.stamina.delay;             // pause after a spend
+export const DODGE = { cost: COMBAT.stamina.dodge, cd: 21, ticks: 22, iframes: 13 };
 export const ENV_MOVE = {
   ground: { accel: 0.24, drag: 0.80 },
   water: { accel: 0.085, drag: 0.94 },
@@ -45,7 +46,14 @@ export class Fighter {
     this.buf = { slot: -1, t: -99, dodge: -99, ult: -99 };
     this.lastHitBy = null; this.wallSlamT = 0;
     this.perfect = 0;            // perfect-dodge counter window ticks
-    this.stats = { dealt: 0, taken: 0, hits: 0, se: 0, dodges: 0, perfect: 0, moves: 0, ults: 0, stamina: {}, movesUsed: {}, moveDmg: {} };
+    this.stats = { dealt: 0, taken: 0, hits: 0, se: 0, dodges: 0, perfect: 0, moves: 0, ults: 0, stamina: {}, movesUsed: {}, moveDmg: {},
+      maxCombo: 0, maxComboDmg: 0, combos: 0, ultChains: 0, breaks: 0, counters: 0, punishes: 0, clashes: 0, armors: 0, finishers: 0, chains: 0, dashStrikes: 0, fires: 0, slams: 0, swats: 0, breakouts: 0 };
+    this.string = { i: 0, until: -1 };          // where the basic-attack string is
+    this.downUntil = 0; this.mercyUntil = 0;    // getting up after a knockdown: no attacks until downUntil, untouchable until mercyUntil
+    this.chainT = -99; this.chainSlot = -1;     // when this fighter last landed a staggering hit, and with which slot
+    this.whiffs = 0; this.basicLock = 0;        // contact basics that hit nothing in a row, and the lockout they earn
+    this.cmb = { n: 0, dmg: 0, acts: 0, lastAct: -1, last: -99, by: null };   // the combo this fighter is currently taking
+    this.heat = 0; this.heatT = -999; this.fire = 0; this.breakAt = -999;                          // heat builds with good play; full heat = on fire
     this.serpent = this.sp.serpent ? new Serpent(this) : null;
     this.beams = [];
     this.enteredT = -999; this.lastDodgeT = -999;
@@ -144,7 +152,67 @@ export class Fighter {
     this.staminaWait = STAMINA_DELAY;
     if (what) this.stats.stamina[what] = (this.stats.stamina[what] || 0) + cost;
   }
-  gainUlt(v) { if (!this.sim.rules.noUlt && this.alive) this.ult = clamp(this.ult + v, 0, 100); }
+  gainUlt(v) { if (!this.sim.rules.noUlt && this.alive) this.ult = clamp(this.ult + v * (this.fire > 0 ? COMBAT.heat.fireUlt : 1), 0, 100); }
+  gainStamina(v) { this.stamina = Math.min(STAMINA_MAX, this.stamina + v); }
+  // heat: landing hits, finishers, counters and perfect dodges build it; at 100 the fighter is on fire for a while
+  addHeat(v) {
+    if (this.fire > 0 || !this.alive || this.sim.phase !== 'fight') return;
+    this.heat = Math.min(100, this.heat + v); this.heatT = this.sim.tick;
+    if (this.heat >= 100) { this.fire = this.sim.tick + COMBAT.heat.fireTicks; this.stats.fires++; this.sim.ev({ e: 'onFire', f: this }); }
+  }
+  loseHeat(v) { if (this.fire <= 0) this.heat = Math.max(0, this.heat - v); }
+  // break: burst out of a combo once it is three hits in, for a chunk of stamina
+  canBreak() { const B = COMBAT.breakOut; return this.state === 'hurt' && this.cmb.n >= B.hits && this.canAfford(B.cost) && this.sim.tick - this.breakAt >= B.cd && !this.status.sleep && !this.status.freeze && !this.sim.acts.some((a) => a.carried && a.owner === this.foe); }
+  breakFree() {
+    const B = COMBAT.breakOut, S = this.sim, a = this.cmb.by || this.lastHitBy;
+    this.spend(B.cost, 'break'); this.breakAt = S.tick; this.stats.breakouts++; this.stats.breaks++;
+    this.hitstun = 0; this.stunLoad = 0; this.flags.stunImmune = S.tick + B.immune; this.flags.invuln = S.tick + B.iframes;
+    this.kvx = this.kvy = 0;
+    if (a && a.alive && a.onField && !a.isEnv) { const ang = Math.atan2(a.y - this.y, a.x - this.x); a.kvx += Math.cos(ang) * B.push; a.kvy += Math.sin(ang) * B.push; }
+    S.endCombo(this, false);
+    if (this.z <= 0) { this.setState('idle'); this.setAnim(this.idleAnim(), { loop: true }); }
+    S.ev({ e: 'breakout', f: this, paid: true });
+  }
+  // UI helpers: is the chain window open right now, and which slot opened it
+  canChainNow() {
+    const t = this.sim.tick, w = COMBAT.chain.window;
+    if (this.state === 'act' && this.move) return !this.move.ult && t - Math.max(this.move.landedT, this.chainT) <= w;
+    return this.canAct() && t - this.chainT <= w && t >= this.downUntil;
+  }
+  chainFrom() { return this.state === 'act' && this.move ? this.move.slot : this.chainSlot; }
+  // getting up after a knockdown (see COMBAT.down)
+  getUp() {
+    const D = COMBAT.down, t = this.sim.tick;
+    this.downUntil = t + D.lock; this.mercyUntil = t + D.mercy;
+    this.flags.invuln = Math.max(this.flags.invuln || 0, this.mercyUntil); this.stunLoad = 0;
+    this.sim.ev({ e: 'getUp', f: this });
+  }
+  // one tick of hit-stop: nothing moves, but presses are buffered and open windows are held open
+  frozenTick() {
+    const inp = this.input, t = this.sim.tick, b = this.buf;
+    b.t++; b.dodge++; b.ult++;
+    if (inp) { if (inp.slot >= 0) { b.slot = inp.slot; b.t = t; } if (inp.dodge) b.dodge = t; if (inp.ult) b.ult = t; }
+    if (this.move) this.move.landedT++;
+    this.chainT++;
+    if (this.string.until > 0) this.string.until++;
+    if (this.basicLock > 0) this.basicLock++;
+  }
+  // is the foe where the basic attack can reach it (including the pull-in of a contact attack)?
+  basicInReach() {
+    const o = this.foe; if (!o || !o.alive || !o.onField || o.flags.intangible || (o.hidden() && !o.flags.revealed) || this.sim.tick < o.mercyUntil) return false;
+    const m = CONTENT.moves[this.kit()[0]], st = m.steps.find((x) => x.k !== 'blink') || {}, d = this.sim.reach(o, this.x, this.y);
+    if (st.k === 'melee' || st.k === 'grab') return d <= Math.max(st.range || 26, COMBAT.basic.reach) + COMBAT.basic.snap;
+    if (st.k === 'dash') return d <= Math.min(st.dist || 100, 78) + (st.hitR || 14);
+    return d <= (st.range || st.len || 180) * 0.92;
+  }
+  // slot 0 is the basic attack when it holds a light move: free, no cooldown, a three-hit string
+  hasBasic() { const m = CONTENT.moves[this.kit()[0]]; return !!m && m.tier === 'light'; }
+  moveCost(slot) { const m = CONTENT.moves[this.kit()[slot]]; return !m ? 0 : slot === 0 && m.tier === 'light' ? 0 : m.cost; }
+  canStartMove(slot) {
+    const m = CONTENT.moves[this.kit()[slot]]; if (!m) return false;
+    const basic = slot === 0 && m.tier === 'light';
+    return basic || (this.cds[slot] <= 0 && !this.silenced() && this.canAfford(m.cost));
+  }
 
   canAct() { return (this.state === 'idle' || this.state === 'walk') && !this.status.sleep && !this.status.freeze && this.hitstun <= 0; }
   setState(s) { this.state = s; this.st = 0; }
@@ -167,10 +235,15 @@ export class Fighter {
     // stamina regen (Double Stamina overtime doubles it; halved while attacking or hurt)
     if (this.staminaWait > 0) this.staminaWait--;
     else {
-      let r = STAMINA_REGEN * (S.overtime ? 2 : 1);
-      if (this.state === 'act' || this.state === 'hurt') r *= 0.5;
+      let r = STAMINA_REGEN * (S.overtime ? 2 : 1) * (this.fire > 0 ? COMBAT.heat.fireRegen : 1);
+      if (this.state === 'hurt') r *= 0.5;
       this.stamina = Math.min(STAMINA_MAX, this.stamina + r);
     }
+    // heat cools after two quiet seconds; being on fire runs its course
+    if (this.fire > 0) { if (S.tick >= this.fire) { this.fire = 0; this.heat = 0; S.ev({ e: 'fireOut', f: this }); } }
+    else if (this.heat > 0 && S.tick - this.heatT > COMBAT.heat.hold) this.heat = Math.max(0, this.heat - COMBAT.heat.decay);
+    // the combo this fighter was taking ends once it can act again
+    if (this.cmb.n > 0 && S.tick - this.cmb.last > 8 && (this.canAct() || this.state === 'act' || this.state === 'dodge' || this.state === 'trav')) S.endCombo(this);
     if (fighting && this.alive) this.gainUlt(S.ultPassive);
 
     // aim noise and decoy targeting come in through the input so replays reproduce them
@@ -180,21 +253,29 @@ export class Fighter {
     if (inp.slot >= 0) { this.buf.slot = inp.slot; this.buf.t = S.tick; }
     if (inp.dodge) this.buf.dodge = S.tick;
     if (inp.ult) this.buf.ult = S.tick;
-    const wantSlot = S.tick - this.buf.t <= 8 ? this.buf.slot : -1;
+    // holding the basic-attack button attacks whenever the target is in reach (a tap always swings)
+    const basicSlot = this.hasBasic();
+    // holding the basic attack swings by itself when the foe is in reach: a few ticks after it comes into reach
+    // (a tap is instant, so timing beats holding), and at once while a string is already going
+    const heldIn = fighting && basicSlot && inp.held && inp.held[0] && this.basicInReach();
+    this.holdT = heldIn ? (this.holdT || 0) + 1 : 0;
+    const wantSlot = S.tick - this.buf.t <= 8 ? this.buf.slot : (heldIn && (this.holdT > COMBAT.basic.holdDelay || this.state === 'act' || this.state === 'dodge') ? 0 : -1);
     const wantDodge = S.tick - this.buf.dodge <= 8;
     const wantUlt = S.tick - this.buf.ult <= 8;
 
     if (this.hitstun > 0) this.hitstun--;
     // stun load: grows while staggered, drains twice as fast while free (see hurt())
-    this.stunLoad = (this.state === 'hurt' || this.hitstun > 0) ? (this.stunLoad || 0) + 1 : Math.max(0, (this.stunLoad || 0) - 2);
+    this.stunLoad = (this.state === 'hurt' || this.hitstun > 0) ? (this.stunLoad || 0) + 1 : Math.max(0, (this.stunLoad || 0) - COMBAT.stun.drain);
 
     switch (this.state) {
       case 'idle': case 'walk': {
         if (!fighting) { this.locomote(0, 0); break; }
         if (this.status.sleep || this.status.freeze) { this.vx *= 0.7; this.vy *= 0.7; break; }
         if (inp.forme && this.sp.formes) S.formeChange(this);
-        if (wantUlt && this.ult >= 100 && !this.silenced()) { this.buf.ult = -99; S.fireUltimate(this); break; }
+        if (wantUlt && this.ult >= 100 && !this.silenced() && S.tick >= this.downUntil) { this.buf.ult = -99; if (S.tick - this.chainT <= COMBAT.chain.window) { this.chainT = -99; this.stats.chains++; this.stats.ultChains++; S.ev({ e: 'chain', f: this, to: 'ult' }); } S.fireUltimate(this); break; }
         if (wantDodge && this.tryDodge()) { this.buf.dodge = -99; break; }
+        // a special pressed just after one of this fighter's hits landed (a projectile, a beam) is a chain, like a cancel
+        if (wantSlot >= 0 && !(wantSlot === 0 && basicSlot) && wantSlot !== this.chainSlot && S.tick - this.chainT <= COMBAT.chain.window && this.tryMove(wantSlot, { chain: true })) { this.buf.slot = -1; this.chainT = -99; this.stats.chains++; S.ev({ e: 'chain', f: this, to: wantSlot }); break; }
         if (wantSlot >= 0 && this.tryMove(wantSlot)) { this.buf.slot = -1; break; }
         let mx = inp.mx, my = inp.my;
         if (this.status.confuse) { const a = Math.atan2(my, mx) + Math.sin(S.tick / 9) * 1.2; const l = Math.hypot(mx, my); mx = Math.cos(a) * l; my = Math.sin(a) * l; }
@@ -202,13 +283,31 @@ export class Fighter {
         break;
       }
       case 'act': {
+        // chains: the next hit of the basic string, or — once a hit has landed — a different special, the Ultimate or a dodge
+        const mv = this.move;
+        if (mv && fighting && !mv.ult) {
+          const landed = S.tick - Math.max(mv.landedT, this.chainT) <= COMBAT.chain.window;
+          let next = null;
+          if (wantUlt && this.ult >= 100 && landed && !this.silenced()) next = 'ult';
+          else if (wantSlot === 0 && basicSlot) {
+            if (mv.basic) { if (mv.si < 2 && (mv.t >= mv.linkT || (S.tick - mv.landedT <= COMBAT.chain.window && mv.t >= mv.hitT + 2))) next = { slot: 0 }; }
+            else if (landed && mv.t >= mv.hitT + 3) next = { slot: 0 };          // special into the string
+          } else if (wantSlot >= 0 && landed && wantSlot !== mv.slot && this.canStartMove(wantSlot)) next = { slot: wantSlot, chain: true };
+          if (next === 'ult') { this.buf.ult = -99; this.stats.chains++; this.stats.ultChains++; S.ev({ e: 'chain', f: this, to: 'ult' }); S.fireUltimate(this); break; }
+          if (next) {
+            S.endMove(this);
+            if (this.tryMove(next.slot, { chain: next.chain })) { this.buf.slot = -1; if (next.chain) { this.stats.chains++; S.ev({ e: 'chain', f: this, to: next.slot }); } break; }
+            break;
+          }
+        }
         updateMove(this);
         if (this.state === 'act' && !(this.move && this.move.drive)) { this.vx *= 0.75; this.vy *= 0.75; }
-        if (this.state === 'act' && wantDodge && this.move && this.move.t >= this.move.cancelT && !this.move.ult && this.tryDodge()) { this.buf.dodge = -99; }
+        if (this.state === 'act' && wantDodge && this.move && !this.move.ult && (this.move.t >= this.move.cancelT || S.tick - this.move.landedT <= COMBAT.chain.window) && this.tryDodge()) { this.buf.dodge = -99; }
         break;
       }
       case 'hurt': {
         this.vx *= 0.7; this.vy *= 0.7;
+        if (fighting && wantDodge && this.canBreak()) { this.buf.dodge = -99; this.breakFree(); break; }
         if (this.hitstun <= 0 && this.z <= 0) { this.setState('idle'); this.setAnim(this.idleAnim(), { loop: true }); }
         break;
       }
@@ -216,6 +315,11 @@ export class Fighter {
         const k = 1 - this.st / DODGE.ticks, sp = 1.0 + 4.6 * k * k;
         this.vx = this.dodgeV.x * sp; this.vy = this.dodgeV.y * sp;
         if (this.st % 3 === 0) S.ev({ e: 'ghost', f: this });
+        // dash strike: a basic attack out of a dodge lunges a long way and hits harder
+        if (fighting && wantSlot === 0 && basicSlot && this.st >= 8) {
+          this.vx *= 0.3; this.vy *= 0.3; this.setState('idle');
+          if (this.tryMove(0, { dash: true })) { this.buf.slot = -1; this.stats.dashStrikes++; S.ev({ e: 'dashStrike', f: this }); break; }
+        }
         if (this.st >= DODGE.ticks) { this.setState('idle'); this.setAnim(this.idleAnim(), { loop: true }); this.vx *= 0.3; this.vy *= 0.3; }
         break;
       }
@@ -300,7 +404,7 @@ export class Fighter {
     if (s.sleep && S.tick % 30 === 0) { const o = this.foe; if (o && o.sp.passive === 'baddreams') S.dot(this, this.maxHp * 0.02, 'nightmare'); }
     if (this.seeded) {
       if (this.seeded.until <= S.tick || !this.seeded.by.alive) this.seeded = null;
-      else if (S.tick % 30 === 0) { const d = Math.max(1, Math.round(this.maxHp * 0.012)); S.dot(this, d, 'seed'); if (this.seeded.by.onField) S.heal(this.seeded.by, d); }
+      else if (S.tick % 30 === 0) { const by = this.seeded.by, d = Math.max(1, Math.round(this.maxHp * 0.012 * (by.bal ? Math.max(0.5, Math.min(1.5, by.bal.dmg)) : 1))); S.dot(this, d, 'seed'); if (by.onField) S.heal(by, d); }
     }
     if (this.sp.passive === 'sandstream' && S.tick % 60 === 0 && S.weather !== 'airlock') { const o = this.foe; if (o && o.alive && o.onField && !o.types.some((t) => t === 'Rock' || t === 'Ground' || t === 'Steel')) S.dot(o, o.maxHp * 0.006, 'sand'); }
   }
@@ -308,22 +412,34 @@ export class Fighter {
     if (this.state === 'idle' || this.state === 'walk' || this.state === 'hurt') { this.setState('idle'); this.setAnim(this.idleAnim(), { loop: true }); }
   }
 
-  tryMove(slot) {
+  tryMove(slot, o = {}) {
     const mid = this.kit()[slot]; if (!mid) return false;
-    const m = CONTENT.moves[mid];
-    if (this.cds[slot] > 0) return false;
-    if (this.silenced()) { this.sim.ev({ e: 'silenced', f: this }); return false; }
-    const cost = m.cost;
-    if (!this.canAfford(cost)) { this.sim.ev({ e: 'noStamina', f: this }); return false; }
-    if (this.flags.invisible) { delete this.flags.invisible; this.sim.ev({ e: 'unrefract', f: this }); }
-    this.stats.movesUsed[mid] = (this.stats.movesUsed[mid] || 0) + 1;
-    if (this.status.confuse && this.sim.rng() < 0.15) {
-      this.spend(cost * 0.5, mid); this.sim.selfHit(this); return true;
+    const m = CONTENT.moves[mid], S = this.sim;
+    const basic = slot === 0 && m.tier === 'light';
+    if (S.tick < this.downUntil) return false;
+    if (basic && S.tick < this.basicLock) return false;
+    if (!basic) {
+      if (this.cds[slot] > 0) return false;
+      if (this.silenced()) { S.ev({ e: 'silenced', f: this }); return false; }
+      if (!this.canAfford(m.cost)) { S.ev({ e: 'noStamina', f: this }); return false; }
     }
-    this.spend(cost, mid);
-    this.cds[slot] = m.cd;
+    if (this.flags.invisible) { delete this.flags.invisible; S.ev({ e: 'unrefract', f: this }); }
+    this.stats.movesUsed[mid] = (this.stats.movesUsed[mid] || 0) + 1;
+    if (this.status.confuse && S.rng() < (basic ? 0.08 : 0.15)) {
+      if (!basic) this.spend(m.cost * 0.5, mid);
+      S.selfHit(this); return true;
+    }
     this.stats.moves++;
-    startMove(this, m, slot);
+    if (basic) {
+      // the string: hit 1, hit 2, finisher — it restarts if the next press comes too late
+      const si = o.dash ? 0 : (S.tick <= this.string.until ? this.string.i : 0);
+      this.string.i = (si + 1) % 3; this.string.until = S.tick + 120;
+      startMove(this, m, slot, { si, dash: !!o.dash });
+      return true;
+    }
+    this.spend(m.cost, mid);
+    this.cds[slot] = m.cd;
+    startMove(this, m, slot, { chain: !!o.chain });
     return true;
   }
   kit() {
@@ -372,11 +488,12 @@ export class Fighter {
     // window where hits still do damage but can't stagger it, so no combo locks anyone for long
     const now = this.sim.tick, load = this.stunLoad || 0;
     if (!force && this.flags.stunImmune > now) return;
-    if (!force && load > 50) { stun = Math.round(stun * Math.max(0, 1 - (load - 50) / 30)); if (stun < 3) { this.flags.stunImmune = now + 40; this.stunLoad = 0; this.sim.ev({ e: 'breakout', f: this }); return; } }
+    if (!force && load > COMBAT.stun.soft) { stun = Math.round(stun * Math.max(0, 1 - (load - COMBAT.stun.soft) / COMBAT.stun.span)); if (stun < 3) { this.flags.stunImmune = now + COMBAT.stun.immune; this.stunLoad = 0; this.stats.breakouts++; const a = this.lastHitBy; if (a && a.alive && a.onField && !a.isEnv) { const ang = Math.atan2(a.y - this.y, a.x - this.x); a.kvx += Math.cos(ang) * 3; a.kvy += Math.sin(ang) * 3; } this.sim.ev({ e: 'breakout', f: this }); return; } }
     if (this.move) this.sim.endMove(this);
     if (this.state === 'trav') { if (this.T && this.T.interrupt) this.T.interrupt(this); this.trav = null; }
     this.flags.intangible = false;
     this.setState('hurt'); this.setAnim('Hurt');
+    this.string.i = 0;
     this.hitstun = Math.max(this.hitstun, stun);
     if (fromAng !== undefined) this.dir = dirFromAngle(fromAng + Math.PI);
   }

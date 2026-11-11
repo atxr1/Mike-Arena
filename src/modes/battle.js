@@ -106,11 +106,11 @@ export class BattleScene {
       const sp = CONTENT.species[sd.team[0]];
       return { name: sp.name, sub: sp.role, sprite: sp.sprite, team: sd.team, color: TYPE_COLORS[sp.types[0]] || '#ff8a3d', types: sp.types };
     };
-    const extra = (X) => X.img ? `<div class="vs-team">${X.team.map((id) => `<canvas data-sprite="${CONTENT.species[id].sprite}"></canvas>`).join('')}</div>` : `<div class="chips vs-chips">${X.types.map((t) => `<span class="chip" style="background:${TYPE_COLORS[t]}">${t.toUpperCase()}</span>`).join('')}</div>`;
+    const extra = (X) => X.img ? `<div class="vs-team">${X.team.map((id) => `<img src="assets/visual/portraits/${CONTENT.species[id].sprite}.webp" alt="">`).join('')}</div>` : `<div class="chips vs-chips">${X.types.map((t) => `<span class="chip" style="background:${TYPE_COLORS[t]}">${t.toUpperCase()}</span>`).join('')}</div>`;
     const A = side(me), B = side(o), map = CONTENT.maps[s.map];
     const ov = this.app.overlay(`<div class="vs" role="dialog" aria-label="Versus">
-      <div class="vs-half vs-a" style="--c:${A.color}">${A.img ? `<img class="vs-port" src="${A.img}" alt="">` : `<canvas class="vs-sprite" data-sprite="${A.sprite}"></canvas>`}<div class="vs-name">${A.name}</div><div class="vs-sub">${A.sub}</div>${extra(A)}${A.line ? `<div class="vs-line">${A.line}</div>` : ''}</div>
-      <div class="vs-half vs-b" style="--c:${B.color}">${B.img ? `<img class="vs-port" src="${B.img}" alt="">` : `<canvas class="vs-sprite" data-sprite="${B.sprite}"></canvas>`}<div class="vs-name">${B.name}</div><div class="vs-sub">${B.sub}</div>${extra(B)}${B.line ? `<div class="vs-line">${B.line}</div>` : ''}</div>
+      <div class="vs-half vs-a" style="--c:${A.color}">${A.img ? `<img class="vs-port" src="${A.img}" alt="">` : `<img class="vs-sprite" src="assets/visual/portraits/${A.sprite}.webp" alt="">`}<div class="vs-name">${A.name}</div><div class="vs-sub">${A.sub}</div>${extra(A)}${A.line ? `<div class="vs-line">${A.line}</div>` : ''}</div>
+      <div class="vs-half vs-b" style="--c:${B.color}">${B.img ? `<img class="vs-port" src="${B.img}" alt="">` : `<img class="vs-sprite" src="assets/visual/portraits/${B.sprite}.webp" alt="">`}<div class="vs-name">${B.name}</div><div class="vs-sub">${B.sub}</div>${extra(B)}${B.line ? `<div class="vs-line">${B.line}</div>` : ''}</div>
       <div class="vs-mark">VS</div>
       <div class="vs-map">${map.name} · ${map.region}${s.title ? `<br><b>${s.title}</b>` : ''}</div>
       <div class="vs-skip">${prompt([['cross', 'Skip']], 20)}</div></div>`, 'vs-layer');
@@ -206,7 +206,7 @@ export class BattleScene {
     for (let i = 0; i < 4; i++) {
       const b = SLOT_BUTTON[i];
       if (P(b)) { if (this.emoteMode) { inp.emote = i; this.emoteMode = false; this.touch.toggleEmotes(false); } else inp.slot = i; }
-      inp.held[i] = I.isDown(b);
+      inp.held[i] = !this.emoteMode && I.isDown(b);
     }
     inp.dodge = P('R'); inp.dodgeHeld = I.isDown('R'); inp.ult = P('L');
     inp.forme = P('forme') || I.pad.buttons.has('up') && !this.padUpPrev || I.pad.buttons.has('down') && !this.padDownPrev;
@@ -235,7 +235,14 @@ export class BattleScene {
       switch (ev.e) {
         case 'ultimate': A.play('zz_riser', { vol: 0.7 }); A.play('zz_slam', { rate: 1.25, vol: 0.8 }); A.duck(0.3, 900); A.muffle(800); break;
         case 'sfx': A.play(ev.id, { pan: this.pan(ev.x) }); break;
-        case 'hit': if (!ev.multi && !ev.statusOnly) { A.play(ev.heavy ? 'psp_physical' : 'psp_hit', { vol: ev.heavy ? 0.9 : 0.6, pan: this.pan(ev.x) }); if (ev.heavy) A.duck(0.5, 400); } if (ev.tgt.side === this.me && ev.heavy) this.vibrate(18); if (ev.eff > 1 && !ev.multi) this.app.audio.crowd(0.9); break;
+        case 'hit': if (!ev.multi && !ev.statusOnly) {
+          // every hit of a combo sounds a little higher than the last
+          const up = 1 + Math.min(12, Math.max(0, (ev.combo || 1) - 1)) * 0.045;
+          A.play(ev.heavy ? 'psp_physical' : 'psp_hit', { vol: ev.heavy ? 0.9 : 0.6, pan: this.pan(ev.x), rate: ev.heavy ? 1 : Math.min(1.3, up) });
+          if ((ev.combo || 0) >= 2) A.play('zz_pop', { vol: 0.5, rate: up, pan: this.pan(ev.x) });
+          if (ev.finisher && !ev.armored) A.play('zz_thud', { vol: 0.8, pan: this.pan(ev.x) });
+          if (ev.heavy && !ev.finisher) A.duck(0.5, 400);
+        } if (ev.tgt.side === this.me && ev.heavy) this.vibrate(18); if (ev.eff > 1 && !ev.multi) this.app.audio.crowd(0.9); break;
         case 'immune': A.play('psp_immune'); break;
         case 'sendOut': A.play('psp_send', { pan: this.pan(ev.f.x) }); break;
         case 'recall': A.play('psp_recall', { pan: this.pan(ev.f.x) }); break;
@@ -247,6 +254,13 @@ export class BattleScene {
         case 'sudden': case 'overtime': A.play('zz_stamp', { vol: 0.6 }); break;
         case 'emote': A.play('menu_Select', { rate: 1.3 }); break;
         case 'perfect': A.play('zz_coin'); break;
+        case 'counterHit': A.play('zz_counter', { vol: ev.kind === 'counter' ? 0.9 : 0.6, rate: ev.kind === 'counter' ? 1 : 0.8, pan: this.pan(ev.x) }); if (ev.kind === 'counter') A.crowd(0.9); break;
+        case 'armor': A.play('zz_armor', { pan: this.pan(ev.x) }); break;
+        case 'clash': if (ev.melee) { A.play('zz_clash'); A.crowd(0.9); } else A.play('zz_tick', { vol: 0.5 }); break;
+        case 'chain': A.play('zz_chain', { vol: 0.6 }); break;
+        case 'onFire': A.play('zz_fire'); A.crowd(1); break;
+        case 'breakout': A.play('zz_whoosh', { vol: 0.5, rate: 1.4 }); break;
+        case 'comboEnd': if (ev.n >= 5) A.crowd(ev.n >= 8 ? 1 : 0.85); break;
         case 'coin': A.play('zz_coin'); break;
         case 'bell': A.play('DUN_Light_Screen', { rate: 0.6 }); break;
         case 'choose': if (ev.sides.includes(this.me)) this.showChooser(); break;
@@ -280,6 +294,32 @@ export class BattleScene {
     this.chooserEl = ov;
   }
   hideChooser() { this.choosing = false; if (this.chooserEl) { this.chooserEl.remove(); this.chooserEl = null; } if (this.chooserKeys) { this.chooserKeys(); this.chooserKeys = null; } }
+  // ---------------------------------------------------------------------------------- training goals
+  // one technique at a time, in the order they are worth learning; each is ticked off by doing it once
+  trainingGoal() {
+    const f = this.S.activeOf(this.me); if (!f) return null;
+    if (!this.goals) {
+      const hasArmor = f.kit().some((id, i) => i > 0 && ['heavy', 'sig'].includes(CONTENT.moves[id].tier));
+      const B = { cross: '✕', sq: '□', tri: '△', circ: '○' };
+      const T = f.T, plainDodge = !(T && (typeof T.replacesDodge === 'function' ? T.replacesDodge(f) : T.replacesDodge));
+      this.goals = [
+        { title: 'Land a full basic string', hint: `Stand next to the opponent and tap ${B.cross} three times`, stat: 'finishers' },
+        { title: 'Chain into a special', hint: `The moment a ${B.cross} hit lands your specials light up: press ${B.sq}, ${B.tri} or ${B.circ}`, stat: 'chains' },
+        plainDodge ? { title: 'Dash strike', hint: `Press R to dodge, then ${B.cross} during the dodge`, stat: 'dashStrikes' } : null,
+        { title: 'Land a combo of 5 hits', hint: 'Finish the string, then chain specials one after another', stat: 'maxCombo', need: 5 },
+        { title: 'Cancel into your Ultimate', hint: 'When the ring is full, press L right after a hit lands', stat: 'ultChains' },
+        { title: 'Perfect dodge', hint: 'Pause and make the opponent fight back, then dodge through an attack at the last moment', stat: 'perfect' },
+        hasArmor ? { title: 'Armour through a hit', hint: 'Start a heavy or signature move while the opponent hits you with basic attacks', stat: 'armors' } : null,
+        { title: 'Break out of a combo', hint: 'Three hits into a combo against you, press R (35 stamina)', stat: 'breaks' },
+      ].filter(Boolean);
+      this.goalIdx = 0; this.goalBase = 0; this.goalDoneAt = -1;
+    }
+    const g = this.goals[this.goalIdx], now = performance.now();
+    if (!g) return { n: this.goals.length, total: this.goals.length, title: 'Every technique learned', hint: 'Keep practising, or leave from the pause menu', done: true };
+    if (this.goalDoneAt < 0 && (g.need ? f.stats[g.stat] >= g.need : f.stats[g.stat] > this.goalBase)) { this.goalDoneAt = now; this.app.audio.play('zz_shine'); }
+    if (this.goalDoneAt >= 0 && now - this.goalDoneAt > 1100) { this.goalIdx++; this.goalDoneAt = -1; const nx = this.goals[this.goalIdx]; this.goalBase = nx && !nx.need ? f.stats[nx.stat] : 0; if (nx && nx.need) f.stats[nx.stat] = 0; return this.trainingGoal(); }
+    return { n: this.goalIdx + 1, total: this.goals.length, title: g.title, hint: g.hint, done: this.goalDoneAt >= 0 };
+  }
   // ---------------------------------------------------------------------------------- render
   render(Sover, worldOver, hudOver, dirOver) {
     const app = this.app, S = Sover || this.S, W = worldOver || this.world, H = hudOver || this.hud, D = dirOver || this.dir;
@@ -305,9 +345,10 @@ export class BattleScene {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.imageSmoothingEnabled = false;
     ctx.fillStyle = '#0c0a18'; ctx.fillRect(0, 0, cw, ch);
+    W.drawScenery(ctx, cw, ch, vw, vh, keff);
     ctx.drawImage(buf, 0, 0, vw, vh, Math.round((cw - vw * keff) / 2), Math.round((ch - vh * keff) / 2), vw * keff, vh * keff);
     if (!D.off) D.drawVignette(ctx, view);
-    if (L < 0.97) H.draw(ctx, S, { w: view.w, h: view.h, dpr, me: this.me, insets: ins, world: W, controls: this.touch.visible && app.input.source === 'touch', scale: keff, slide: L });
+    if (L < 0.97) H.draw(ctx, S, { w: view.w, h: view.h, dpr, me: this.me, insets: ins, world: W, controls: this.touch.visible && app.input.source === 'touch', scale: keff, slide: L, goal: !Sover && this.setup.training ? this.trainingGoal() : null });
     if (!D.off) D.drawOverlay(ctx, view);
     if (!Sover) this.touch.update(S, this.me, S.format === 'trainer');
     if (app.settings.devOverlay) this.devOverlay(ctx, S, dpr);
@@ -332,19 +373,20 @@ export class BattleScene {
     this.app.audio.duck(0.35, 99999);
     const S = this.S;
     const rule = S.format === 'trainer' ? 'Trainer Battle: 4-minute clock. A side wins when the other has no Pokémon left. At time-out, the higher total HP percentage wins.' : 'Pokémon Battle: 99-second clock. At time-out, the higher HP percentage wins.';
+    const how = ' ✕ is your free basic attack (a three-hit string). Chain a different special the moment a hit lands. Heavy moves armour through basic hits. Three hits into a combo against you, R breaks free for 35 stamina.';
     const tour = !!this.setup.tour, arcade = !!this.setup.arcade, training = !!this.setup.training;
     const mine = S.activeOf(this.me), common = { fighterId: mine ? mine.id : null, megaUsed: !!(mine && mine.form === 'mega') };
     // paused after the result is in (app sent to the background, phone turned upright): leaving goes to the results,
     // so a won match can't be thrown away or forfeited
-    if (this.decided()) { this.app.menu('pause', { ...common, rule, noRestart: true, quitLabel: 'Skip to results', quitConfirm: null, onResume: () => this.resume(), onQuit: () => { this.resume(true); this.toResults(); } }); return; }
+    if (this.decided()) { this.app.menu('pause', { ...common, rule: rule + how, noRestart: true, quitLabel: 'Skip to results', quitConfirm: null, onResume: () => this.resume(), onQuit: () => { this.resume(true); this.toResults(); } }); return; }
     if (training) {
       const still = this.setup.sides[1 - this.me].level === 'dummy';
-      this.app.menu('pause', { ...common, rule: 'Training: no clock and no knockouts. HP refills after 3 seconds without taking damage. Nothing here counts toward your records.', quitLabel: 'Leave training', quitConfirm: null,
+      this.app.menu('pause', { ...common, rule: 'Training: no clock and no knockouts. HP refills after 3 seconds without taking damage, and the Ultimate charges fast. Nothing here counts toward your records.' + how, quitLabel: 'Leave training', quitConfirm: null,
         extra: [{ label: still ? 'Make the opponent fight back' : 'Make the opponent stand still', run: () => { this.resume(true); this.hooks.setLevel && this.hooks.setLevel(still ? 'normal' : 'dummy'); } }],
         onResume: () => this.resume(), onRestart: () => { this.resume(true); this.hooks.restart && this.hooks.restart(); }, onQuit: () => { this.resume(true); this.quit(); } });
       return;
     }
-    this.app.menu('pause', { ...common, rule, noRestart: tour || arcade, quitLabel: tour ? 'Forfeit match' : arcade ? 'Forfeit run' : 'Quit', quitConfirm: tour ? 'Forfeit this tournament match? It counts as a loss.' : arcade ? 'Forfeit this battle? Your arcade run ends here.' : null, onResume: () => this.resume(), onRestart: () => { this.resume(true); this.hooks.restart && this.hooks.restart(); }, onQuit: () => { this.resume(true); this.quit(); } });
+    this.app.menu('pause', { ...common, rule: rule + how, noRestart: tour || arcade, quitLabel: tour ? 'Forfeit match' : arcade ? 'Forfeit run' : 'Quit', quitConfirm: tour ? 'Forfeit this tournament match? It counts as a loss.' : arcade ? 'Forfeit this battle? Your arcade run ends here.' : null, onResume: () => this.resume(), onRestart: () => { this.resume(true); this.hooks.restart && this.hooks.restart(); }, onQuit: () => { this.resume(true); this.quit(); } });
   }
   decided() { return this.state === 'potm' || this.state === 'ending' || !!(this.S && this.S.result); }
   toResults() {

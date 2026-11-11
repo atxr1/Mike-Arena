@@ -22,6 +22,7 @@ for (const [W, H] of sizes) {
   const page = await ctx.newPage();
   page.on('pageerror', (e) => R.errors.push('pageerror: ' + e.message));
   let untouched = false;   // set while matches run without the test poking the sim state (Play of the Match must replay exactly)
+  page.on('response', (r) => { if (r.status() === 404) R.errors.push('404: ' + r.url()); });
   page.on('console', (m) => {
     if (m.type() === 'error' && !/decodeAudioData|Unable to decode audio|EncodingError/.test(m.text())) R.errors.push('console: ' + m.text());
     if (untouched && /replay diverged/.test(m.text())) R.errors.push('Play of the Match replay diverged in an untouched match');

@@ -4,9 +4,10 @@ import { CONTENT, rawEffect, arenaEffect } from './content.js';
 import { Fighter, STAMINA_MAX, STAMINA_REGEN } from './fighter.js';
 import { startMove, SPECIALS } from './mechanics.js';
 import { FEATURES } from './features.js';
+import { COMBAT } from './combat.js';
 
 export const MATCH = { pokemonTicks: 99 * 60, trainerTicks: 240 * 60, overtimeAt: 30 * 60, suddenTicks: 20 * 60 };
-export const TUNING = { dmgK: 0.17, trainerDmg: { ground: 1.18, water: 1.25, air: 0.86 }, pokemonDmg: { ground: 1, water: 1, air: 0.88 }, ultPassive: 0.7 / 60, ultDealt: 64, ultTaken: 36 };
+export const TUNING = { dmgK: 0.08, ultDmg: 3.2, ultCap: 0.34, trainerDmg: { ground: 1.18, water: 1.25, air: 0.95 }, pokemonDmg: { ground: 0.8, water: 1.25, air: 0.88 }, ultPassive: COMBAT.ult.passive, ultDealt: COMBAT.ult.dealt, ultTaken: COMBAT.ult.taken };
 
 // environment pseudo-attacker for map hazards
 function makeEnv() {
@@ -103,6 +104,13 @@ export class Sim {
   }
   endMove(f) {
     for (const a of this.acts) if (a.owner === f && a.bound && !a.done) { a.done = true; a.end && a.end(a); }
+    if (f.move && f.move.basic) {
+      f.string.until = this.tick + COMBAT.basic.window;
+      // a contact basic that touched nothing: each one in a row adds a little lockout before the next
+      const k = f.move.def.steps[0] && f.move.def.steps.find((x) => x.k !== 'blink').k;
+      if ((k === 'melee' || k === 'dash') && f.move.landedT < 0 && !f.move.swatted && f.move.t >= f.move.hitT) { f.whiffs = Math.min(3, f.whiffs + 1); f.basicLock = this.tick + Math.min(COMBAT.basic.whiffMax, COMBAT.basic.whiff * f.whiffs); f.string.i = 0; }
+      else if (f.move.landedT >= 0) f.whiffs = 0;
+    }
     f.move = null; f.beams.length = 0;
     if (f.flags.airborne) { f.z = 0; f.flags.airborne = false; }
     f.flags.hidden = false; delete f.flags.front;
@@ -168,7 +176,9 @@ export class Sim {
   // callers clear `events` before applying inputs (see modes/match.js), so command events survive the step
   step() {
     this.tick++;
-    if (this.freeze > 0) { this.freeze--; return; }
+    // hit-stop never eats a press: buttons pressed while the action is frozen are buffered, and the windows that
+    // were open when it froze (the chain window, the string, buffered presses) do not run down
+    if (this.freeze > 0) { this.freeze--; for (const f of this.fighters()) f.frozenTick(); return; }
     if (this.slowmo > 0) this.slowmo--;
     this.phaseT++;
     switch (this.phase) {
@@ -243,6 +253,7 @@ export class Sim {
     for (const f of this.fighters()) {
       if (f.trainHp === undefined || f.hp < f.trainHp) f.trainAt = this.tick;
       if (this.tick - f.trainAt > 180 && f.hp < f.maxHp) f.hp = Math.min(f.maxHp, f.hp + Math.ceil(f.maxHp / 90));
+      f.gainUlt(0.1);   // the Ultimate comes round quickly in training
       f.trainHp = f.hp;
     }
   }
@@ -250,10 +261,11 @@ export class Sim {
     if (f.state === 'faint') return;
     if (this.rules.training) { f.hp = f.maxHp; f.trainHp = f.hp; this.ev({ e: 'trainReset', f }); return; }
     const sd = this.sides[f.side];
+    this.endCombo(f);
     if (f.move) this.endMove(f);
     if (f.state === 'trav' && f.T && f.T.interrupt) f.T.interrupt(f);
     f.hp = 0; f.fall = 0; f.sink = 0;   // (a revived Pokémon can faint twice)
-    f.setState('faint'); f.faintT = 0; f.status = {}; f.buffs = []; f.flags = {}; f.seeded = null; f.trav = null;
+    f.setState('faint'); f.faintT = 0; f.status = {}; f.buffs = []; f.flags = {}; f.seeded = null; f.trav = null; f.heat = 0; f.fire = 0;
     if (f.serpent) f.serpent.coilNow = true;
     sd.ko++;
     const remaining = sd.team.filter((x) => x.alive).length;
@@ -410,12 +422,14 @@ export class Sim {
     if (sp.set && tgt.sets.has(sp.set)) return false;
     if (tgt.sets.size > 4000) tgt.sets.clear();
     const ang = sp.kbAng !== undefined ? sp.kbAng : Math.atan2(tgt.y - att.y, tgt.x - att.x);
-    // invulnerable (dodge frames, Protect, send-out)
+    // a fighter whose combo just ended in a knockdown gets up before anything else can touch it
+    if (tgt.cmb.down && tgt.cmb.n > 0 && tgt.state !== 'hurt' && tgt.hitstun <= 0 && this.tick - tgt.cmb.last > 8) this.endCombo(tgt);
+    // invulnerable (dodge frames, Protect, send-out, getting up)
     if (tgt.flags.invuln) {
       if (sp.set) tgt.sets.add(sp.set);
       if (tgt.flags.dodgeIframe && !sp.multi) {
         if ((tgt.state === 'dodge' || tgt.state === 'trav') && tgt.st <= 9) {
-          tgt.perfect = 70; tgt.stats.perfect++;
+          tgt.perfect = 70; tgt.stats.perfect++; tgt.gainStamina(COMBAT.stamina.perfect); tgt.addHeat(COMBAT.heat.perfect);
           this.slowmo = Math.max(this.slowmo, 24);
           this.ev({ e: 'perfect', f: tgt });
         } else this.ev({ e: 'evade', f: tgt });
@@ -431,11 +445,19 @@ export class Sim {
       this.hit(tgt, att, { att: tgt, power: (tgt.flags.counterPow || 60) * 1.6, type: 'Fighting', cat: 'physical', kb: 4.5, stun: 30, set: this.newSet(), heavy: true, x: att.x, y: att.y - 10, fx: 'Focus_Blast_Hit' });
       return true;
     }
+    // clash: two contact attacks of the same weight meeting head-on cancel each other
+    if (sp.clash && att.move && !att.isEnv && tgt.state === 'act' && tgt.move && tgt.move.clashable) {
+      const tm = tgt.move, live = tm.t >= tm.hitT - 3 && tm.t <= tm.hitT + 8;
+      const facing = Math.abs(angDiff(tgt.aim, Math.atan2(att.y - tgt.y, att.x - tgt.x))) < 1.3;
+      if (live && facing && !!sp.basic === !!tm.basic) { if (sp.set) tgt.sets.add(sp.set); this.clash(att, tgt); return false; }
+    }
     // type effectiveness (Ground moves miss levitating fighters)
     let raw = rawEffect(sp.type, tgt.types);
     if (sp.dual) raw *= rawEffect(sp.dual, tgt.types);
     if (sp.superVs && tgt.types.includes(sp.superVs)) raw = Math.max(raw, 2) * (tgt.types.length > 1 ? rawEffect(sp.type, tgt.types.filter((t) => t !== sp.superVs)) : 1);
     if (sp.type === 'Ground' && (tgt.sp.levitate || this.env === 'air' || tgt.flags.airborne)) raw = 0;
+    // the basic attack always connects: a type immunity only weakens it, so no matchup takes it away
+    if (raw === 0 && sp.basic) raw = 0.25;
     const eff = arenaEffect(raw);
     if (sp.set) tgt.sets.add(sp.set);
     if (eff === 0) { this.ev({ e: 'immune', f: tgt, att, type: sp.type }); return true; }
@@ -444,6 +466,21 @@ export class Sim {
     // front barrier (Iron Defense) blocks from the front
     let blocked = false;
     if (!sp.ignoreBarrier && tgt.flags.front && Math.abs(angDiff(tgt.aim, Math.atan2(att.y - tgt.y, att.x - tgt.x))) < (tgt.flags.frontArc || 2.2) / 2) blocked = true;
+    // armour: a heavy or signature move shrugs off basic hits while it starts up (the damage still counts)
+    // (heavy and signature moves shrug off basic hits while they start up; an Ultimate shrugs off everything)
+    const armored = !statusOnly && !blocked && tgt.state === 'act' && !!tgt.move && tgt.move.t <= tgt.move.armorT && (!!sp.basic || (tgt.move.ult && !sp.ult));
+    // counter hit (the target was starting an attack) or punish (it was recovering from one)
+    let ch = null;
+    if (!statusOnly && !sp.multi && !armored && !blocked && !att.isEnv && tgt.state === 'act' && tgt.move && !tgt.flags.unstoppable) ch = tgt.move.t < tgt.move.hitT ? 'counter' : 'punish';
+    // combo bookkeeping lives on the victim: hits it takes before it can act again belong to one combo
+    const cb = tgt.cmb, C = COMBAT;
+    let scale = 1;
+    if (!statusOnly && !att.isEnv) {
+      const cont = cb.n > 0 && cb.by === att && (tgt.state === 'hurt' || tgt.hitstun > 0 || this.tick - cb.last <= 8);
+      if (!cont) { this.endCombo(tgt, false); cb.by = att; }
+      if (sp.act === undefined || sp.act !== cb.lastAct) { cb.acts++; cb.lastAct = sp.act ?? -1; cb.newAct = true; } else cb.newAct = false;
+      scale = C.scale[Math.min(C.scale.length - 1, cb.acts - 1)];
+    }
     let dmg = 0;
     if (!statusOnly) {
       const A = att.stat(sp.cat === 'special' ? 'spa' : 'atk'), D = tgt.stat(sp.cat === 'special' ? 'spd' : 'def');
@@ -453,22 +490,49 @@ export class Sim {
       if (sp.crit && this.rng() < sp.crit) { dmg *= 1.5; this.ev({ e: 'crit', f: tgt }); }
       if (att.tv && att.tv.updraft > this.tick) dmg *= 1.2;
       if (blocked) { dmg *= 0.15; this.ev({ e: 'block', f: tgt }); }
+      if (armored) dmg *= C.armor.taken;
+      if (ch) dmg *= C[ch].dmg;
+      if (sp.ult) dmg *= TUNING.ultDmg;
+      dmg *= sp.ult ? Math.max(scale, 0.7) : scale;      // an Ultimate at the end of a long combo still lands with weight
       if (this.weatherOn('rain') && sp.type === 'Water') dmg *= 1.25;
       if (this.weatherOn('rain') && sp.type === 'Fire') dmg *= 0.8;
       if (this.sudden) dmg = Math.max(dmg, tgt.hp + 1);
       dmg = Math.max(1, Math.round(dmg));
+      // ...but no single Ultimate takes more than about a third of a health bar
+      if (sp.ult && !this.sudden) {
+        const key = sp.act ?? sp.set, u = tgt.ultHit && tgt.ultHit.key === key ? tgt.ultHit : (tgt.ultHit = { key, sum: 0 });
+        dmg = Math.max(1, Math.min(dmg, Math.round(tgt.maxHp * TUNING.ultCap) - u.sum)); u.sum += dmg;
+      }
       if (tgt.flags.shieldHp > 0 && tgt.flags.shieldUntil > this.tick) { const ab = Math.min(tgt.flags.shieldHp, dmg); tgt.flags.shieldHp -= ab; dmg -= ab; this.ev({ e: 'shieldHit', f: tgt, amt: ab }); }
       tgt.hp = Math.max(0, tgt.hp - dmg);
       att.stats.dealt += dmg; att.stats.hits++; tgt.stats.taken += dmg; if (eff > 1) att.stats.se++;
       if (att.stats.moveDmg) { const k = sp.moveId || 'other'; att.stats.moveDmg[k] = (att.stats.moveDmg[k] || 0) + dmg; }
       att.gainUlt(dmg / tgt.maxHp * (sp.ult ? 8 : TUNING.ultDealt)); tgt.gainUlt(dmg / tgt.maxHp * TUNING.ultTaken);
       tgt.lastHitBy = att;
+      if (!att.isEnv) {
+        cb.n++; cb.dmg += dmg; cb.last = this.tick;
+        att.stats.maxCombo = Math.max(att.stats.maxCombo, cb.n); att.stats.maxComboDmg = Math.max(att.stats.maxComboDmg, cb.dmg);
+        // landing basic hits refills stamina (once per swing); every good hit builds heat
+        if (sp.basic && !armored && sp.act !== att.gainAct) { att.gainAct = sp.act; att.gainStamina((sp.ranged ? C.basic.gainRanged : C.basic.gain) + (sp.finisher ? C.basic.gainFinisher : 0)); }
+        if (!armored && att.addHeat) att.addHeat((sp.basic ? (sp.finisher ? C.heat.finisher : C.heat.basic) : cb.newAct ? C.heat.special : 0.5) + (eff > 1 && cb.newAct ? C.heat.effective : 0) + (ch ? C.heat.counter : 0));
+        tgt.loseHeat(sp.heavy ? C.heat.hurtHeavy : sp.multi ? 0.5 : C.heat.hurt);
+        if (sp.finisher && !armored) att.stats.finishers++;
+        if (!armored && (sp.finisher || sp.ult || cb.acts >= C.down.acts)) cb.down = true;
+        if (ch === 'counter') att.stats.counters++; else if (ch === 'punish') att.stats.punishes++;
+        if (armored) tgt.stats.armors++;
+        // the attacker may chain out of this move for a short window
+        if (att.move && sp.act === att.move.act && !armored && !blocked) att.move.landedT = this.tick;
+        // ...and a hit that staggers opens the same window on the attacker itself, so a projectile or beam that lands
+        // after its move has ended can still be chained from
+        if (!armored && !blocked && sp.stun > 0 && !sp.noFlinch && !sp.multi && !tgt.flags.unstoppable && att.kit) { att.chainT = this.tick; att.chainSlot = att.kit().indexOf(sp.moveId); }
+      }
     }
     // knockback + hitstun
-    const kb = blocked || statusOnly ? 0 : (sp.kb || 0) * tgt.weightMul * (sp.heavy ? 1.15 : 1) * tgt.kbTaken() * (this.env === 'air' ? 1.12 : 1);
+    const kb = blocked || statusOnly || armored ? 0 : (sp.kb || 0) * tgt.weightMul * (sp.heavy ? 1.15 : 1) * tgt.kbTaken() * (this.env === 'air' ? 1.12 : 1);
     tgt.kvx += Math.cos(ang) * kb; tgt.kvy += Math.sin(ang) * kb;
-    if (!statusOnly) {
-      if (!blocked && sp.stun > 0 && !sp.noFlinch && !tgt.flags.unstoppable) tgt.hurt(sp.stun, ang);
+    if (!statusOnly && armored) { tgt.flashT = this.tick + 3; this.ev({ e: 'armor', f: tgt, att, x: tgt.x, y: tgt.y - 12 }); }
+    if (!statusOnly && !armored) {
+      if (!blocked && sp.stun > 0 && !sp.noFlinch && !tgt.flags.unstoppable) tgt.hurt(sp.stun + (ch ? C[ch].stun : 0), ang);
       else if (!blocked && !tgt.flags.unstoppable && sp.multi && tgt.state !== 'act') tgt.hitstun = Math.max(tgt.hitstun, 3);
       if (sp.launch && !blocked && !tgt.flags.unstoppable && !(tgt.flags.stunImmune > this.tick) && (tgt.stunLoad || 0) < 60 && this.env !== 'water') {
         // juggles: at most two re-launches while airborne, and never above ~30 units
@@ -481,12 +545,14 @@ export class Sim {
     // status
     if (tgt.status.sleep && !sp.keepSleep && !statusOnly) { delete tgt.status.sleep; tgt.wakeUp(); }
     if (tgt.status.freeze && sp.type === 'Fire') { delete tgt.status.freeze; tgt.wakeUp(); }
-    if (sp.status && !blocked) this.tryStatus(tgt, sp.status, att);
+    if (sp.status && !blocked && !armored) this.tryStatus(tgt, sp.status, att);
     if (sp.drain && !att.status.healBlock) this.heal(att, dmg * sp.drain);
     if (sp.healBlock) tgt.status.healBlock = sp.healBlock;
-    if (!statusOnly) this.freeze = Math.max(this.freeze, sp.multi ? 1 : sp.heavy ? 6 : 3);
+    if (!statusOnly) this.freeze = Math.max(this.freeze, (armored ? 2 : sp.multi ? 1 : sp.finisher ? 7 : sp.heavy ? 6 : 3) + (ch ? C[ch].freeze : 0));
+    if (ch) this.ev({ e: 'counterHit', att, tgt, kind: ch, x: tgt.x, y: tgt.y - 14 });
+    if (!statusOnly && !att.isEnv && cb.n >= 2) this.ev({ e: 'combo', att, tgt, n: cb.n, dmg: Math.round(cb.dmg) });
     if (sp.zone) sp.zone.hitAny = true;
-    if (!statusOnly || sp.status) this.ev({ e: 'hit', att, tgt, dmg, eff, type: sp.type, x: sp.x ?? tgt.x, y: sp.y ?? tgt.y - 10, heavy: sp.heavy, multi: sp.multi, fx: sp.fx, set: sp.set, blocked, ult: sp.ult, statusOnly, kb });
+    if (!statusOnly || sp.status) this.ev({ e: 'hit', att, tgt, dmg, eff, type: sp.type, x: sp.x ?? tgt.x, y: sp.y ?? tgt.y - 10, heavy: sp.heavy, multi: sp.multi, fx: sp.fx, set: sp.set, blocked, ult: sp.ult, statusOnly, kb, moveId: sp.moveId, basic: !!sp.basic, si: sp.si, finisher: !!sp.finisher, armored, ch, combo: cb.n });
     if (this.sudden && tgt.hp > 0 && !statusOnly) tgt.hp = 0;
     if (tgt.hp <= 0) this.knockOut(tgt);
     return true;
@@ -529,23 +595,48 @@ export class Sim {
   }
   heal(f, amt) {
     if (!f.alive || f.status.healBlock) return;
-    const h = Math.max(0, Math.min(f.maxHp - f.hp, Math.round(amt)));
+    // healing tires: the more of a health bar a fighter has already healed this battle, the less each heal restores
+    // (no fighter can out-heal the fight and run the clock down)
+    const tired = amt / (1 + COMBAT.heal.tire * (f.healed || 0) / f.maxHp);
+    const h = Math.max(0, Math.min(f.maxHp - f.hp, Math.round(tired)));
     if (h <= 0) return;
-    f.hp += h;
+    f.hp += h; f.healed = (f.healed || 0) + h;
     this.ev({ e: 'heal', f, amt: h });
   }
   wallSlam(f, speed, res) {
     const att = f.lastHitBy || this.activeOf(1 - f.side);
-    const dmg = Math.round(f.maxHp * 0.035 + speed * 2.2);
+    // (scaled by the attacker's balance multiplier like any other damage it causes)
+    const dmg = Math.max(1, Math.round((f.maxHp * 0.02 + speed * 1.4) * (att && !att.isEnv && att.bal ? Math.min(1.6, att.bal.dmg) : 1)));
     f.hp = Math.max(0, f.hp - dmg);
     if (att && att.stats) att.stats.dealt += dmg;
     f.kvx *= -0.3; f.kvy *= -0.3;
-    if (!f.flags.unstoppable && f.state !== 'faint') f.hurt(18);
+    if (!f.flags.unstoppable && f.state !== 'faint') f.hurt(26);
+    if (f.cmb.n > 0) f.cmb.down = true;
+    if (att && att.stats && !att.isEnv) { att.stats.slams++; att.addHeat(COMBAT.heat.slam); if (f.cmb.n > 0 && f.cmb.by === att) { f.cmb.n++; f.cmb.dmg += dmg; f.cmb.last = this.tick; att.stats.maxCombo = Math.max(att.stats.maxCombo, f.cmb.n); this.ev({ e: 'combo', att, tgt: f, n: f.cmb.n, dmg: Math.round(f.cmb.dmg) }); } }
     this.freeze = Math.max(this.freeze, 6);
     this.ev({ e: 'wallSlam', f, x: f.x, y: f.y, dmg });
     this.ev({ e: 'shake', amt: 5 });
     if (this.feature && this.feature.onSlam) this.feature.onSlam(f);
     if (f.hp <= 0) this.knockOut(f);
+  }
+  // a combo is over: report it (two hits or more) and clear the victim's counter
+  endCombo(f, getUp = true) {
+    const cb = f.cmb;
+    if (cb.n >= 2 && cb.by) { if (cb.by.stats) cb.by.stats.combos++; this.ev({ e: 'comboEnd', att: cb.by, tgt: f, n: cb.n, dmg: Math.round(cb.dmg) }); }
+    // a big combo ends in a knockdown: the victim gets up untouchable, and both fighters are back to neutral
+    if (cb.down && getUp && f.alive && f.onField && this.phase === 'fight') f.getUp();
+    cb.n = 0; cb.dmg = 0; cb.acts = 0; cb.lastAct = -1; cb.by = null; cb.down = false;
+  }
+  clash(a, b) {
+    const ang = Math.atan2(b.y - a.y, b.x - a.x), K = COMBAT.clash;
+    for (const [f, s] of [[a, -1], [b, 1]]) {
+      if (f.move) this.endMove(f);
+      f.kvx += Math.cos(ang) * K.push * s; f.kvy += Math.sin(ang) * K.push * s;
+      f.string.i = 0; f.gainStamina(K.stamina); f.addHeat(COMBAT.heat.clash); f.stats.clashes++;
+    }
+    this.freeze = Math.max(this.freeze, K.freeze);
+    this.ev({ e: 'clash', x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 - 8, melee: true, a, b });
+    this.ev({ e: 'shake', amt: 3 });
   }
   selfHit(f) {
     const dmg = Math.round(f.maxHp * 0.05);
@@ -668,7 +759,7 @@ export class Sim {
       if (z.dead) continue;
       const zt = z.t++;           // a zone is evaluated on the tick it is created (lt 0 = burst tick)
       if (z.follow) { z.x = z.follow.x; z.y = z.follow.y; if (!z.follow.alive || !z.follow.onField) { z.dead = true; this.ev({ e: 'zoneEnd', z }); continue; } }
-      if (z.trackTarget && zt < z.trackTarget.until) { const o = z.trackTarget.o; z.x += clamp(o.x - z.x, -0.6, 0.6); z.y += clamp(o.y - z.y, -0.6, 0.6); }
+      if (z.trackTarget && zt < z.trackTarget.until) { const o = z.trackTarget.o, v = z.trackTarget.speed || 0.6; z.x += clamp(o.x - z.x, -v, v); z.y += clamp(o.y - z.y, -v, v); }
       if (zt < z.delay) continue;
       const lt = zt - z.delay;
       const st = z.st || {};

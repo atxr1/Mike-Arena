@@ -14,12 +14,14 @@ function grad(c, x0, y0, x1, y1, ...stops) {
 }
 
 const F_COND = '"Barlow Condensed", "Arial Narrow", "Helvetica Neue", sans-serif';
-const COL = { night: '#16122e', dusk: '#2b2252', plate: '#1d1838', orange: '#ff8a3d', gold: '#ffd25a', red: '#e8333c', green: '#5fd36b', yellow: '#f5c542', hpRed: '#ff4d4d', cream: '#fff6e6', dim: '#b9b0d6', stam: '#62d2ff' };
+const COL = { night: '#071c2c', dusk: '#163b50', plate: '#102e42', orange: '#e9c67f', gold: '#e9c67f', red: '#e8333c', green: '#5fd36b', yellow: '#f5c542', hpRed: '#ff4d4d', cream: '#fff9e9', dim: '#aac4cf', stam: '#62d2ff' };
 const STATUS_BADGE = { burn: ['BRN', '#ee7a30'], poison: ['PSN', '#a048b0'], para: ['PAR', '#e8c020'], sleep: ['SLP', '#8a8aa8'], freeze: ['FRZ', '#60c8e8'], confuse: ['CNF', '#e070c0'], slow: ['SLW', '#5a8ad8'] };
 
 export class HUD {
-  constructor(gfx) { this.g = gfx; this.disp = new Map(); this.callouts = []; this.announce = []; this.moveCalls = [null, null]; this.t = 0; this.potm = false; }
-  reset() { this.disp.clear(); this.callouts.length = 0; this.announce.length = 0; this.moveCalls = [null, null]; }
+  constructor(gfx) { this.g = gfx; this.disp = new Map(); this.callouts = []; this.announce = []; this.moveCalls = [null, null]; this.t = 0; this.potm = false; this.combo = [null, null]; this.tags = []; }
+  reset() { this.disp.clear(); this.callouts.length = 0; this.announce.length = 0; this.moveCalls = [null, null]; this.combo = [null, null]; this.tags.length = 0; }
+  // a short word beside the combo counter: Counter!, Punish!, Armour, Clash!, Finisher...
+  word(side, text, col) { this.tags = this.tags.filter((t) => !(t.side === side && t.text === text)); this.tags.push({ side, text, col, t: 0 }); if (this.tags.length > 6) this.tags.shift(); }
   callout(text, color = COL.cream) {
     const same = this.callouts.find((x) => x.text === text);
     if (same) { same.t = Math.min(same.t, 10); return; }
@@ -29,8 +31,17 @@ export class HUD {
   moveCall(side, name, type, ult) { this.moveCalls[side] = { name, type, ult, t: 0 }; }
   consume(S, events, me) {
     for (const ev of events) {
-      if (ev.e === 'moveCall') this.moveCall(ev.f.side, ev.name, ev.type, ev.ult);
-      else if (ev.e === 'hit' && !ev.multi && !ev.statusOnly && ev.dmg > 0) { if (ev.eff >= 1.75) this.callout('It\'s extremely effective!', COL.gold); else if (ev.eff > 1) this.callout('It\'s super effective!', COL.gold); else if (ev.eff < 1) this.callout('It\'s not very effective…', COL.dim); }
+      if (ev.e === 'moveCall') { if (!ev.basic || ev.si === 0) this.moveCall(ev.f.side, ev.name, ev.type, ev.ult); }
+      else if (ev.e === 'combo') { const c = this.combo[ev.att.side]; this.combo[ev.att.side] = { n: ev.n, dmg: ev.dmg, t: 0, pop: 1, done: false, best: c && !c.done ? Math.max(c.best || 0, ev.n) : ev.n }; }
+      else if (ev.e === 'comboEnd') { const c = this.combo[ev.att.side]; if (c && !c.done) { c.done = true; c.t = 0; c.n = ev.n; c.dmg = ev.dmg; c.pop = ev.n >= 5 ? 1 : 0; } }
+      else if (ev.e === 'counterHit') this.word(ev.att.side, ev.kind === 'counter' ? 'Counter!' : 'Punish!', ev.kind === 'counter' ? COL.gold : '#ff9a5c');
+      else if (ev.e === 'armor') this.word(ev.f.side, 'Armour', '#cfe3ff');
+      else if (ev.e === 'clash' && ev.melee) { this.word(0, 'Clash!', COL.cream); this.word(1, 'Clash!', COL.cream); }
+      else if (ev.e === 'breakout') this.word(ev.f.side, ev.paid ? 'Break!' : 'Broke free!', '#9fe8ff');
+      else if (ev.e === 'dashStrike') this.word(ev.f.side, 'Dash strike', COL.cream);
+      else if (ev.e === 'onFire') this.word(ev.f.side, 'On fire!', '#ffb347');
+      else if (ev.e === 'chain' && ev.to === 'ult') this.word(ev.f.side, 'Ultimate cancel!', COL.gold);
+      else if (ev.e === 'hit' && !ev.multi && !ev.statusOnly && ev.dmg > 0 && (!ev.basic || ev.si === 0)) { if (ev.eff >= 1.75) this.callout('It\'s extremely effective!', COL.gold); else if (ev.eff > 1) this.callout('It\'s super effective!', COL.gold); else if (ev.eff < 1) this.callout('It\'s not very effective…', COL.dim); }
       // (Mega Evolution and Ultimates are announced by the cinematic cut-in, ui/cinema.js)
       else if (ev.e === 'forme') this.callout('Deoxys changed to ' + (ev.forme === 'normal' ? 'Normal Forme' : ev.f.sp.formes[ev.forme].name) + '!', COL.gold);
       else if (ev.e === 'status') this.callout(statusLine(ev.f, ev.kind), COL.cream);
@@ -82,7 +93,8 @@ export class HUD {
       if (slide < 0.6) this.offscreen(c, S, view);
     }
     c.globalAlpha = 1;
-    if (slide < 0.5) { this.drawCallouts(c, view); this.drawAnnounce(c, view); }
+    if (slide < 0.5) { this.drawCombos(c, S, view); this.drawCallouts(c, view); this.drawAnnounce(c, view); }
+    if (view.goal && slide < 0.5) this.drawGoal(c, view, L, T);
     if (this.potm) this.potmBanner(c, view);
     c.restore();
   }
@@ -112,7 +124,7 @@ export class HUD {
     if (!mirror) { c.moveTo(x, y); c.lineTo(x + w, y); c.lineTo(x + w - sk, y + h); c.lineTo(x, y + h); }
     else { c.moveTo(x, y); c.lineTo(x + w, y); c.lineTo(x + w, y + h); c.lineTo(x + sk, y + h); }
     c.closePath();
-    const gr = grad(c, 0, y, 0, y + h, [0, '#2e2658ee'], [1, '#141028ee']);
+    const gr = grad(c, 0, y, 0, y + h, [0, '#163c50f2'], [1, '#071e31f2']);
     c.fillStyle = gr; c.fill();
     c.lineWidth = 1; c.strokeStyle = '#ffffff22'; c.stroke();
     // type-colored accent edge
@@ -122,8 +134,8 @@ export class HUD {
     // portrait well with ultimate ring
     const pr = 23, pcx = mirror ? x + w - 6 - pr - 4 : x + 8 + pr, pcy = y + h / 2;
     c.save();
-    c.beginPath(); c.arc(pcx, pcy, pr, 0, Math.PI * 2); c.fillStyle = '#0d0a1c'; c.fill();
-    c.lineWidth = 4; c.strokeStyle = '#3a3264'; c.stroke();
+    c.beginPath(); c.arc(pcx, pcy, pr, 0, Math.PI * 2); c.fillStyle = '#071b2b'; c.fill();
+    c.lineWidth = 4; c.strokeStyle = '#35576c'; c.stroke();
     const uf = Math.min(1, d.ult / 100);
     if (uf > 0) { c.beginPath(); c.arc(pcx, pcy, pr, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * uf); c.strokeStyle = uf >= 1 ? (this.t >> 3) % 2 ? COL.gold : '#fff2b8' : '#c9a6ff'; c.lineWidth = 4; c.stroke(); }
     if (uf >= 1) { c.shadowColor = COL.gold; c.shadowBlur = 10; c.beginPath(); c.arc(pcx, pcy, pr + 2, 0, Math.PI * 2); c.strokeStyle = COL.gold + '88'; c.lineWidth = 1.5; c.stroke(); c.shadowBlur = 0; }
@@ -138,7 +150,7 @@ export class HUD {
     let name = f.sp.name + (f.form === 'mega' ? ' ★' : '');
     c.fillText(name, tx, y + 18);
     let cx = tx + c.measureText(name).width + 6;
-    for (const t of f.types) cx = this.chip(c, cx, y + 7, t) + 3;
+    for (const t of f.types) { c.font = `700 9px ${F_COND}`; if (cx + c.measureText(t.toUpperCase()).width + 8 <= tx + tw) cx = this.chip(c, cx, y + 7, t) + 3; }
     // status badges
     let bx = mirror ? tx : x + w - sk - 4;
     const badges = [];
@@ -159,14 +171,27 @@ export class HUD {
     c.textAlign = 'left';
     if (S.format === 'trainer') this.balls(c, sd, hbX, hbY + hbH + 4);
     else { c.fillStyle = COL.dim; c.font = `600 11px ${F_COND}`; c.fillText(f.sp.role, hbX, hbY + hbH + 13); }
+    // heat: fills with good play; full = on fire (stamina refills much faster for a while)
+    {
+      const hx = hbX + (S.format === 'trainer' ? 52 : 74), hw = Math.max(24, Math.min(64, hbW - (S.format === 'trainer' ? 52 : 74) - 62)), hy = hbY + hbH + 6;
+      const on = f.fire > 0, k = on ? Math.max(0, (f.fire - S.tick) / 420) : f.heat / 100;
+      c.fillStyle = '#0d0a1c'; roundRect(c, hx - 1, hy - 1, hw + 2, 7, 3); c.fill();
+      if (k > 0) { c.fillStyle = on ? ((this.t >> 2) % 2 ? '#ffe36e' : '#ff8a3d') : grad(c, hx, 0, hx + hw, 0, [0, '#ff6a3d'], [1, '#ffd25a']); roundRect(c, hx, hy, Math.max(3, hw * k), 5, 2.5); c.fill(); }
+    }
     // opponent's slim stamina bar under its panel
     if (side !== view.me) {
       const sx = x + sk + 6, sy = y + h + 3, sw = w - sk - 12;
-      c.fillStyle = '#0d0a1caa'; c.fillRect(sx, sy, sw, 4);
+      c.fillStyle = '#071b2baa'; c.fillRect(sx, sy, sw, 4);
       c.fillStyle = COL.stam; c.fillRect(sx, sy, sw * f.stamina / 100, 4);
     }
   }
   livePortrait(c, f, cx, cy, r) {
+    const art = this.g.characterArt.get(f.spriteId) || this.g.characterArt.get(f.sp.sprite);
+    if (art) {
+      c.save(); c.imageSmoothingEnabled = true;
+      const d = r * 2.35; c.drawImage(art, cx - d / 2, cy - d / 2, d, d);
+      c.restore(); return;
+    }
     const g = this.g, atlas = g.atlas.get(f.spriteId), fr = f.animFrame && f.animFrame();
     if (!atlas || !fr) return;
     const s = fr[3] > 48 || fr[2] > 56 ? 1 : 2;
@@ -190,7 +215,7 @@ export class HUD {
     c.save();
     roundRect(c, x - 2, y - 2, w + 4, h + 4, (h + 4) / 2); c.fillStyle = '#05040c'; c.fill();
     roundRect(c, x, y, w, h, h / 2); c.save(); c.clip();
-    c.fillStyle = '#2a2440'; c.fillRect(x, y, w, h);
+    c.fillStyle = '#17394b'; c.fillRect(x, y, w, h);
     c.fillStyle = '#ffe9e9'; c.fillRect(x, y, w * lag, h);          // lagging pale chunk = recent damage
     const gr = grad(c, 0, y, 0, y + h, [0, lighten(col)], [0.55, col], [1, darken(col)]);
     c.fillStyle = gr; c.fillRect(x, y, w * frac, h);
@@ -239,20 +264,21 @@ export class HUD {
     const w = Math.min(320, view.w * 0.34), h = 14, x = view.w / 2 - w / 2, y = view.h - view.insets.b - (view.controls ? 26 : 18);
     c.save();
     c.beginPath(); c.moveTo(x - 10, y - 6); c.lineTo(x + w + 10, y - 6); c.lineTo(x + w + 2, y + h + 6); c.lineTo(x - 2, y + h + 6); c.closePath();
-    c.fillStyle = '#0d0a1ccc'; c.fill(); c.strokeStyle = '#ffffff22'; c.lineWidth = 1; c.stroke();
+    c.fillStyle = '#071b2bcc'; c.fill(); c.strokeStyle = '#ffffff22'; c.lineWidth = 1; c.stroke();
     roundRect(c, x, y, w, h, 4); c.fillStyle = '#211b3c'; c.fill();
     const k = f.stamina / 100;
-    const gr = grad(c, x, 0, x + w, 0, [0, S.overtime ? '#ffb347' : '#3aa8ff'], [1, S.overtime ? '#ffe36e' : '#8ef0ff']);
+    const hot = S.overtime || f.fire > 0;
+    const gr = grad(c, x, 0, x + w, 0, [0, hot ? '#ffb347' : '#3aa8ff'], [1, hot ? '#ffe36e' : '#8ef0ff']);
     c.save(); roundRect(c, x, y, w, h, 4); c.clip();
     c.fillStyle = gr; c.fillRect(x, y, w * k, h);
     c.fillStyle = '#ffffff35'; c.fillRect(x, y + 1, w * k, 3);
-    for (let i = 1; i < 10; i++) { c.fillStyle = '#0d0a1c66'; c.fillRect(Math.round(x + w * i / 10), y, 1, h); }
+    for (let i = 1; i < 10; i++) { c.fillStyle = '#071b2b66'; c.fillRect(Math.round(x + w * i / 10), y, 1, h); }
     c.restore();
     // move cost notches: one marker per move at its cost, dimmed when unaffordable
     const kit = f.kit();
     const btn = ['✕', '□', '△', '○'], bc = ['#6ea8ff', '#ff7ad9', '#3ddc97', '#ff5a6a'];
     for (let i = 0; i < 4; i++) {
-      const m = CONTENT.moves[kit[i]]; if (!m) continue;
+      const m = CONTENT.moves[kit[i]]; if (!m || f.moveCost(i) === 0) continue;
       const nx = x + w * m.cost / 100, ok = f.stamina >= m.cost && f.cds[i] <= 0;
       c.fillStyle = ok ? bc[i] : '#55506a';
       c.beginPath(); c.moveTo(nx, y - 1); c.lineTo(nx - 4, y - 7 - i * 0); c.lineTo(nx + 4, y - 7); c.closePath(); c.fill();
@@ -286,15 +312,70 @@ export class HUD {
       c.save(); c.globalAlpha = 1 - out;
       c.font = `italic 800 ${mc.ult ? 19 : 16}px ${F_COND}`;
       const tw = c.measureText(mc.name).width + 30, h = mc.ult ? 26 : 22;
-      const y = T + 96;
+      const y = T + 96 + (view.goal && s === view.me ? 16 : 0);
       const x = mine ? L - 20 + 20 * slide : R - tw + 20 - 20 * slide;
       const col = TYPE_COLORS[mc.type] || COL.orange;
       c.beginPath(); c.moveTo(x, y); c.lineTo(x + tw, y); c.lineTo(x + tw - 10, y + h); c.lineTo(x - 10, y + h); c.closePath();
-      c.fillStyle = mc.ult ? COL.gold : '#0d0a1ce6'; c.fill();
+      c.fillStyle = mc.ult ? COL.gold : '#071b2be6'; c.fill();
       c.fillStyle = col; c.fillRect(mine ? x - 4 : x + tw - 8, y, 4, h);
       c.fillStyle = mc.ult ? '#1a1030' : COL.cream; c.textAlign = 'left'; c.fillText(mc.name, x + 10, y + h - 6);
       c.restore();
     }
+  }
+  // combo counter and tags: mine on the left, the opponent's on the right, above where the thumbs rest
+  drawCombos(c, S, view) {
+    const top = view.insets.t + 150 + (view.goal ? 16 : 0);
+    for (let s = 0; s < 2; s++) {
+      const mine = s === view.me, x = mine ? view.insets.l + 16 : view.w - view.insets.r - 16;
+      let y = top;
+      const cb = this.combo[s];
+      if (cb) {
+        cb.t += this.dt; cb.pop = Math.max(0, cb.pop - 0.14 * this.dt);
+        const life = cb.done ? 64 : 100;
+        if (cb.t > life) this.combo[s] = null;
+        else {
+          const a = cb.t > life - 10 ? (life - cb.t) / 10 : 1, sc = 1 + cb.pop * 0.4;
+          const col = mine ? (cb.n >= 7 ? '#ff8a3d' : COL.gold) : '#ff9a9a';
+          c.save(); c.globalAlpha = a; c.textAlign = mine ? 'left' : 'right'; c.lineJoin = 'round'; c.strokeStyle = '#16122e';
+          c.translate(x, y); c.scale(sc, sc);
+          c.font = `italic 800 38px ${F_COND}`; c.lineWidth = 6; c.strokeText(String(cb.n), 0, 0); c.fillStyle = col; c.fillText(String(cb.n), 0, 0);
+          const nw = c.measureText(String(cb.n)).width + 5;
+          c.font = `italic 800 14px ${F_COND}`; c.lineWidth = 4; c.strokeText('HITS', mine ? nw : -nw, -2); c.fillStyle = COL.cream; c.fillText('HITS', mine ? nw : -nw, -2);
+          c.font = `italic 700 12px ${F_COND}`; c.strokeText(`${cb.dmg} damage`, 0, 15); c.fillText(`${cb.dmg} damage`, 0, 15);
+          if (cb.done && cb.n >= 4) { const word = cb.n >= 10 ? 'Unstoppable!' : cb.n >= 7 ? 'Awesome!' : cb.n >= 5 ? 'Great!' : 'Nice!'; c.font = `italic 800 16px ${F_COND}`; c.strokeText(word, 0, 33); c.fillStyle = col; c.fillText(word, 0, 33); }
+          c.restore();
+          y += 52;
+        }
+      }
+      for (const t of this.tags) {
+        if (t.side !== s) continue;
+        if (!t.seen) { t.seen = true; } else t.t += this.dt;
+        const a = t.t > 40 ? Math.max(0, 1 - (t.t - 40) / 10) : 1, pop = Math.max(0, 1 - t.t / 6);
+        c.save(); c.globalAlpha = a; c.textAlign = mine ? 'left' : 'right'; c.lineJoin = 'round';
+        c.translate(x, y); c.scale(1 + pop * 0.3, 1 + pop * 0.3);
+        c.font = `italic 800 17px ${F_COND}`; c.lineWidth = 4; c.strokeStyle = '#16122e'; c.strokeText(t.text, 0, 0); c.fillStyle = t.col; c.fillText(t.text, 0, 0);
+        c.restore();
+        y += 20;
+      }
+    }
+    this.tags = this.tags.filter((t) => t.t < 50);
+  }
+  // training: the technique to practise now, under the player's panel
+  drawGoal(c, view, L, T) {
+    const g = view.goal, y = T + 66, w = Math.min(340, view.w * 0.42);
+    c.save();
+    c.beginPath(); c.moveTo(L, y); c.lineTo(L + w, y); c.lineTo(L + w - 8, y + 38); c.lineTo(L, y + 38); c.closePath();
+    c.fillStyle = g.done ? '#1f4a2ee6' : '#16122ee6'; c.fill();
+    c.fillStyle = g.done ? COL.green : COL.gold; c.fillRect(L, y, 4, 38);
+    c.textAlign = 'left';
+    c.font = `italic 800 14px ${F_COND}`; c.fillStyle = g.done ? COL.green : COL.gold;
+    c.fillText(g.done && g.n <= g.total && g.title !== 'Every technique learned' ? 'Done!' : `Goal ${g.n} of ${g.total}`, L + 12, y + 15);
+    const lw = c.measureText(`Goal ${g.n} of ${g.total}`).width;
+    c.fillStyle = COL.cream; c.fillText(g.title, L + 20 + lw, y + 15);
+    c.font = `500 11.5px ${F_COND}`; c.fillStyle = COL.dim;
+    let hint = g.hint; while (c.measureText(hint).width > w - 26 && hint.length > 8) hint = hint.slice(0, -2);
+    c.fillText(hint === g.hint ? hint : hint + '…', L + 12, y + 30);
+    c.restore();
   }
   drawCallouts(c, view) {
     let y = view.insets.t + 108;   // below the timer and the START / SELECT buttons, centred between the move banners
@@ -304,7 +385,7 @@ export class HUD {
       c.save(); c.globalAlpha = a;
       c.font = `italic 700 14px ${F_COND}`; c.textAlign = 'center';
       const tw = c.measureText(co.text).width + 24;
-      c.fillStyle = '#0d0a1caa'; c.beginPath(); c.moveTo(view.w / 2 - tw / 2 + 5, y - 15); c.lineTo(view.w / 2 + tw / 2 + 5, y - 15); c.lineTo(view.w / 2 + tw / 2 - 5, y + 5); c.lineTo(view.w / 2 - tw / 2 - 5, y + 5); c.closePath(); c.fill();
+      c.fillStyle = '#071b2baa'; c.beginPath(); c.moveTo(view.w / 2 - tw / 2 + 5, y - 15); c.lineTo(view.w / 2 + tw / 2 + 5, y - 15); c.lineTo(view.w / 2 + tw / 2 - 5, y + 5); c.lineTo(view.w / 2 - tw / 2 - 5, y + 5); c.closePath(); c.fill();
       c.fillStyle = co.color; c.fillText(co.text, view.w / 2, y);
       c.restore();
       y += 22;
@@ -321,7 +402,7 @@ export class HUD {
       // broadcast banner: full-width slanted strip sliding in from the right
       const off = (1 - k) * view.w;
       c.beginPath(); c.moveTo(off - 20, y - bh / 2); c.lineTo(view.w + off + 20, y - bh / 2); c.lineTo(view.w + off, y + bh / 2); c.lineTo(off - 40, y + bh / 2); c.closePath();
-      const gr = grad(c, 0, y - bh / 2, 0, y + bh / 2, [0, a.style === 'faint' ? '#2b2252ee' : '#ff8a3dee'], [1, a.style === 'faint' ? '#16122eee' : '#c0471aee']);
+      const gr = grad(c, 0, y - bh / 2, 0, y + bh / 2, [0, a.style === 'faint' ? '#163b50ee' : '#e9c67fee'], [1, a.style === 'faint' ? '#071c2cee' : '#c0471aee']);
       c.fillStyle = gr; c.fill();
       c.fillStyle = COL.gold; c.fillRect(off, y - bh / 2, view.w, 2); c.fillRect(off, y + bh / 2 - 2, view.w, 2);
       c.textAlign = 'center'; c.fillStyle = COL.cream;

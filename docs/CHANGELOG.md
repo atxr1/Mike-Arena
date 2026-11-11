@@ -1,5 +1,71 @@
 # Changelog
 
+## Mike Arena 2.0.0 — 2026-11-11 — Combat 2.0 and the League Atelier look
+
+The fighting itself was rebuilt, and ChatGPT's visual overhaul was merged on top. No new modes: the whole release is
+about what happens between "Fight!" and the knockout. Full rules in `docs/COMBAT.md`, the reasons in
+`docs/DECISIONS.md`.
+
+**How it plays now**
+- **✕ is a free basic attack** for every Pokémon: a three-hit string, tap or hold, no stamina, no cooldown. The
+  third hit is a Finisher. □ △ ○ are the specials (stamina and cooldown as before), R is the dodge or movement
+  ability, L is the Ultimate.
+- **Chains.** The moment any hit lands, the special buttons light up: press a different special, or L with a full
+  ring, to cancel straight into it. That is the combo system, for melee and ranged fighters alike.
+- **Knockdown.** A Finisher, an Ultimate, a wall slam or a four-attack combo knocks the target down. It gets up
+  flickering, cannot be hit, and gets the next move. Fights are a series of exchanges, not one long slugfest.
+- **Break** (R after three hits of a combo, 35 stamina), **armour** (heavy and signature moves shrug off basic hits
+  while they start up), **Counter** and **Punish** bonuses, **clashes**, **dash strikes** (✕ out of a dodge), a
+  **heat gauge** that sets a fighter **on fire**, and perfect dodges that give stamina back.
+- **Ultimates matter.** They fill about 1.7× as fast, cannot be interrupted, and a clean hit takes a quarter to a
+  third of a health bar (it was about 5 % on average). Rain-type Ultimates chase the target.
+- **After the battle:** a style rank from D to S, up to four medals for what you actually did, and mastery levels per
+  Pokémon (shown on the select screen and in Records).
+- **Training has goals** that teach the string, chains, dash strikes, Break and the rest one at a time.
+- **The CPU was rewritten for all of it.** Easy rests between sequences and rarely chains; Hard chains nearly every
+  hit, jabs first up close, side-steps approaches and takes its turn after a knockdown. Difficulty never changes
+  stats.
+
+**The look (ChatGPT's "League Atelier" pass, merged)**
+- Painted title stadium and twelve high-resolution arena paintings, drawn under the pixel fighters. They are
+  repaints of the existing arenas and were checked against every arena's walls, pillars and hazards.
+- Official character artwork in the menus, the VS card, the HUD and the Ultimate cut-ins.
+- Navy, ivory and gold menus throughout, plus an icon and type-medallion set for later use.
+- Fixed on the way in: a broken image on the Random arena card, two lines glued together in the pause-menu move
+  list, and the results table running off the screen. Portraits deploy as WebP (7.2 MB → 1.6 MB).
+
+**Fixed (these were in 1.x too)**
+- Presses made during hit-stop were dropped, so a special pressed "the moment the hit lands" often did nothing.
+- A basic hit could knock an Ultimate out of its start-up and waste the meter.
+- Chansey and Ho-Oh could out-heal a fight and win on the clock. Healing now tires.
+- Small Pokémon had shorter swings and lost every race to hit first. Every contact basic now reaches the same.
+
+**Measured (Normal CPU against Normal CPU unless noted)**
+- One-on-one battles: median 47 s on ground, 42 s on water, 45 s on air (900 battles each); 94–99 % end in a
+  knockout. Each fighter fires 1.3 Ultimates per battle; the lead changes 2 to 3 times; a third to a half of
+  battles are won with under 30 % health left. Trainer Battles: about 2.0 to 2.3 minutes.
+- Balance after re-tuning all 44 fighter/environment pairs and all 33 trainer teams: every Pokémon wins 39–57 % of
+  its battles; trainer teams 42–59 %.
+- Chains that connect when pressed on the first hit or the Finisher: 182 of 218 (64 before the hit-stop fix). The
+  rest are charge moves, lobbed moves and dashes that are out of range after a ranged Finisher.
+- Scripted players against the CPU (46 battles per cell, win rate of the scripted player):
+
+  | Scripted player | Easy | Normal | Hard |
+  |---|---|---|---|
+  | Holds ✕ and nothing else | 83–96 % | 2–26 % | 4–17 % |
+  | Random buttons | 87–89 % | 28–35 % | 17–24 % |
+  | Holds ✕, chains every hit, fires the Ultimate | 96–100 % | 63–70 % | 57–59 % |
+  | The same, plus frame-perfect dodges and Break | 98–100 % | 70–72 % | 57–70 % |
+
+**Known limits**
+- Hard is beatable more than half the time by a script that chains every single hit without fail. People will not
+  be that consistent on a touch screen, but Hard is not yet a wall for a strong player.
+- Feel, sound and frame rate on a real iPhone were not checked here (the tests run in headless Chromium).
+- 36 of 218 chains do not connect (see above); a charge move pressed after a Finisher passes through the
+  opponent while it gets up.
+- Weezing sits at the bottom of the ground table (about 40–45 %) and Meowth needs a 4.5× damage multiplier to
+  compete. Both want kit changes more than numbers.
+
 ## Mike Arena 1.1.0 — 2026-11-09 — Arcade, Training and Records
 
 One large addition, three medium ones and ten small ones. Pokémon Battles play exactly as in 1.0.0; Trainer Battles

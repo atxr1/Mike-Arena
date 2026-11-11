@@ -101,15 +101,17 @@ export class World {
     this.cx = cx; this.cy = cy;
     b.setTransform(1, 0, 0, 1, 0, 0);
     b.globalAlpha = 1; b.globalCompositeOperation = 'source-over';
-    b.fillStyle = '#0c0a18'; b.fillRect(0, 0, this.w, this.h);
+    this.hdMap = this.g.paintings && this.g.paintings.get(this.map.img);
+    if (this.hdMap) b.clearRect(0, 0, this.buf.width, this.buf.height);
+    else { b.fillStyle = '#0c0a18'; b.fillRect(0, 0, this.w, this.h); }
     b.setTransform(1, 0, 0, 1, -cx, -cy);
     // map (air maps scroll slower: far-below parallax)
-    if (this.mapImg) {
+    if (this.mapImg && !this.hdMap) {
       const src = this.mapPad || this.mapImg, off = this.mapPad ? MAP_PAD : 0;
       if (S.env === 'air') { const px = Math.round(cx * 0.15), py = Math.round(cy * 0.15); b.drawImage(src, px, py - off); }
       else b.drawImage(src, 0, -off);
     }
-    if (this.cheerImg && fx.cheer > 0 && (this.t >> 3) % 2 === 0) b.drawImage(this.cheerImg, 0, 0);
+    if (!this.hdMap && this.cheerImg && fx.cheer > 0 && (this.t >> 3) % 2 === 0) b.drawImage(this.cheerImg, 0, 0);
     this.drawWaterSurface(S);
     this.drawDecals();
     const lift = S.env === 'air' ? AIR_LIFT : 0;
@@ -155,7 +157,7 @@ export class World {
     this.drawWeather(S);
     this.drawAmbient(S);
     // colour grade (flat multiply) and the type-coloured flash of a big hit, in screen space
-    const gr = GRADE[this.map.id];
+    const gr = this.hdMap ? null : GRADE[this.map.id];
     if (gr || fx.tint) {
       b.save(); b.setTransform(1, 0, 0, 1, 0, 0);
       if (gr) { const flick = this.map.id === 'mt_chimney' ? 0.03 * Math.sin(this.t * 0.07) : 0; b.globalCompositeOperation = 'multiply'; b.globalAlpha = gr[1] + flick; b.fillStyle = gr[0]; b.fillRect(0, 0, this.w, this.h); b.globalCompositeOperation = 'source-over'; }
@@ -173,6 +175,23 @@ export class World {
     if (fx.speedLines > 0) { const W = this.buf.width, H = this.buf.height; b.drawImage(PX.speedLines(W, H, fx.speedLines % 3), Math.round((this.w - W) / 2), Math.round((this.h - H) / 2)); }
     if (fx.flash > 0) { b.globalAlpha = 0.5; b.fillStyle = '#ffffff'; b.fillRect(0, 0, this.w, this.h); b.globalAlpha = 1; }
     return this.buf;
+  }
+  // Full-resolution scenery is composited under the transparent pixel actor/effect layer.
+  // This method reads the already-computed camera; it never changes world coordinates.
+  drawScenery(c, cw, ch, vw, vh, scale) {
+    const im = this.hdMap; if (!im) return;
+    const [mw, mh] = this.map.size;
+    const px = this.map.env === 'air' ? Math.round(this.cx * 0.15) : 0;
+    const py = this.map.env === 'air' ? Math.round(this.cy * 0.15) : 0;
+    const ox = Math.round((cw - vw * scale) / 2), oy = Math.round((ch - vh * scale) / 2);
+    c.save();
+    c.setTransform(scale, 0, 0, scale, ox + (px - this.cx) * scale, oy + (py - this.cy) * scale);
+    c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high';   // lint: painted scenery (the only smooth layer; fighters and effects stay pixel art)
+    c.drawImage(im, 0, 0, mw, mh);
+    // Mirror outside the painting just as the original renderer did; camera bounds are unchanged.
+    c.save(); c.scale(1, -1); c.drawImage(im, 0, 0, mw, mh); c.restore();
+    c.save(); c.translate(0, mh * 2); c.scale(1, -1); c.drawImage(im, 0, 0, mw, mh); c.restore();
+    c.restore();
   }
   // world -> screen helpers for the HUD
   toScreen(x, y) { return { x: x - this.cx, y: y - this.cy }; }
@@ -210,6 +229,8 @@ export class World {
     const r = this.frameRect(f, fr);
     const z = this.hover(S, f);
     let x = Math.round(f.x - r.ax), y = Math.round(f.y - r.ay - z);
+    // hit-stop: the fighter that was just struck rattles in place while the frame is held
+    if (f.state === 'hurt' && S.freeze > 0 && !this.fx.reduced) x += (S.freeze & 1) ? 2 : -2;
     let src = atlas;
     const mg = this.fx.mega && this.fx.mega.f === f ? this.fx.mega : null;
     if (mg && mg.t < 36 && (mg.t < 24 || (mg.t >> 1) % 2)) src = g.whiteAtlas(f.spriteId) || atlas;
@@ -217,6 +238,9 @@ export class World {
     else if (f.status.freeze) src = g.tintAtlas(f.spriteId, '#9fe8ff', 'frz') || atlas;
     else if (f.flags.shadow) src = g.tintAtlas(f.spriteId, '#120a20', 'shd') || atlas;
     else if (f.perfect > 0 && (this.t >> 2) % 2) src = g.tintAtlas(f.spriteId, '#fff3a0', 'prf') || atlas;
+    else if (f.fire > 0 && (this.t >> 2) % 4 === 0) src = g.tintAtlas(f.spriteId, '#ffc46b', 'fire') || atlas;
+    // getting up after a knockdown: the classic untouchable flicker
+    if (S.tick < f.mercyUntil && f.state !== 'faint') b.globalAlpha = this.fx.reduced ? 0.6 : (S.tick >> 1) % 3 === 0 ? 0.3 : 1;
     const hidden = f.hidden() && !f.flags.revealed;
     if (hidden) {
       if (f.side !== this.focusSide && f.foe && f.foe.sp.passive !== 'aura') {

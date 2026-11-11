@@ -1,0 +1,1182 @@
+{
+  "name": "League Atelier",
+  "visual_files": 144,
+  "assets": [
+    {
+      "path": "fx/burst-aura.svg",
+      "bytes": 1443,
+      "sha256": "2b83cbec766f09b1e7504de5a0a76e55dca1ee15a2bcd7f5ca8959f5dbc03d26",
+      "usage": "extension asset"
+    },
+    {
+      "path": "fx/burst-flame.svg",
+      "bytes": 1443,
+      "sha256": "4d64114a1d3bf686d51d044da43ed7e589d516489a91911bb560fbb7fa14857f",
+      "usage": "extension asset"
+    },
+    {
+      "path": "fx/burst-heal.svg",
+      "bytes": 1443,
+      "sha256": "358a10e4188637efe489734da325a9700931e6adecdb83fb10a330616217e949",
+      "usage": "extension asset"
+    },
+    {
+      "path": "fx/burst-psychic.svg",
+      "bytes": 1443,
+      "sha256": "1814672444fdcd110d8cc722c38191f5ab7252e02dbb4b159cce4b2b0b0a38a5",
+      "usage": "extension asset"
+    },
+    {
+      "path": "fx/ring-aura.svg",
+      "bytes": 292,
+      "sha256": "1d0c795560d48dca6b3f1d680767c5f689584b0c6e0c086fb2710b4f3449ec9e",
+      "usage": "extension asset"
+    },
+    {
+      "path": "fx/ring-flame.svg",
+      "bytes": 292,
+      "sha256": "a0a98def6de2d81aef37c60ac593857a2c8c309237634525a1d9ca309286e3dd",
+      "usage": "extension asset"
+    },
+    {
+      "path": "fx/ring-heal.svg",
+      "bytes": 292,
+      "sha256": "9b6e7c4ebee1811e5b0055ffa51c56175403003c3b7b4d0362c486ef242655e0",
+      "usage": "extension asset"
+    },
+    {
+      "path": "fx/ring-psychic.svg",
+      "bytes": 292,
+      "sha256": "0d8f09d61c5cd83747ca461a5f6a8a83e65f3a8db58366d8d05be5d6a1558c1c",
+      "usage": "extension asset"
+    },
+    {
+      "path": "icons/air.svg",
+      "bytes": 253,
+      "sha256": "037403cd626f475144c2876490b8d0541fcd558a1212438bbcb36c8d113927c0",
+      "usage": "extension asset"
+    },
+    {
+      "path": "icons/arcade.svg",
+      "bytes": 268,
+      "sha256": "77f87059053bf0c484ea257ed229aabdb0ec975d59c4f6e613d2b9455c359b7a",
+      "usage": "extension asset"
+    },
+    {
+      "path": "icons/back.svg",
+      "bytes": 200,
+      "sha256": "88cdf21e20014e5d56d2a8da20d5e6b45d66970f53b7d60292f0d78ff345cc97",
+      "usage": "extension asset"
+    },
+    {
+      "path": "icons/bracket.svg",
+      "bytes": 239,
+      "sha256": "4fac5f2eef3ec491310443f424b1624fc8e1c01711ac5ca9763cf1d517261a39",
+      "usage": "extension asset"
+    },
+    {
+      "path": "icons/bug.svg",
+      "bytes": 313,
+      "sha256": "208e136dde275701577181c7ecc3e9cdfb7389502b0ba7f28577d37e7397cd75",
+      "usage": "extension asset"
+    },
+    {
+      "path": "icons/check.svg",
+      "bytes": 191,
+      "sha256": "baed25bccb342c869ab1f9e4948e257d67a8f9780fdcf5ac71e85012c3773999",
+      "usage": "extension asset"
+    },
+    {
+      "path": "icons/close.svg",
+      "bytes": 197,
+      "sha256": "c6ffcbf5ade53e570449937274fecbe4b02343af1be5a851cacf75e57638dcc5",
+      "usage": "extension asset"
+    },
+    {
+      "path": "icons/crown.svg",
+      "bytes": 221,
+      "sha256": "5581edc24efe8905236395c85a05a5ac0b77f6b63b46b2afa7443cd01d1fac2e",
+      "usage": "extension asset"
+    },
+    {
+      "path": "icons/dark.svg",
+      "bytes": 239,
+      "sha256": "d84d7360a28f1f9862289b70ebfe8f449f9077061fa7e3e254423e8158fe9501",
+      "usage": "extension asset"
+    },
+    {
+      "path": "icons/dragon.svg",
+      "bytes": 275,
+      "sha256": "c1d53d1d7f0ef75e790953c0881446c78c3ab8477f2a7a62d0b54d61d245ebe9",
+      "usage": "extension asset"
+    },
+    {
+      "path": "icons/electric.svg",
+      "bytes": 203,
+      "sha256": "9eff024e740c067d3400cd88dd2548d7ba22705a8d256e4548c465f3f3cb382a",
+      "usage": "extension asset"
+    },
+    {
+      "path": "icons/fairy.svg",
+      "bytes": 274,
+      "sha256": "44cca26b2acc3b259c3c890f9d8d2c4fe5e36cc7cadafb28abc95802d66e8651",
+      "usage": "extension asset"
+    },
+    {
+      "path": "icons/fighting.svg",
+      "bytes": 264,
+      "sha256": "3c0a0c7249b50995bd4d1800ed9c937c358fa48ed193d6b6c0949f1f648281d8",
+      "usage": "extension asset"
+    },
+    {
+      "path": "icons/fire.svg",
+      "bytes": 258,
+      "sha256": "fb5ba882f488456ae0f55a483b9d40086b0f3b16b5ff6e5f8c9ad0b261b74ea2",
+      "usage": "extension asset"
+    },
+    {
+      "path": "icons/flying.svg",
+      "bytes": 238,
+      "sha256": "795fc8ece481f77f8d26b8702f41af2bab638d6343af6320ec261a411e15325f",
+      "usage": "extension asset"
+    },
+    {
+      "path": "icons/ghost.svg",
+      "bytes": 301,
+      "sha256": "dcd7561c1b1905ca12627e0be97f37e3c9e78ab5821c7cb3cf54ccc41dfd9825",
+      "usage": "extension asset"
+    },
+    {
+      "path": "icons/grass.svg",
+      "bytes": 233,
+      "sha256": "00fe04302fa3801494c2b2654360be312ab29b951dc45c0e28716eb20d0da3ea",
+      "usage": "extension asset"
+    },
+    {
+      "path": "icons/ground.svg",
+      "bytes": 233,
+      "sha256": "a2c6504ad129051d185b6aa55ea8fc08dcfd06f650fd8283b74881f1fcb65a63",
+      "usage": "extension asset"
+    },
+    {
+      "path": "icons/heart.svg",
+      "bytes": 230,
+      "sha256": "1e164ea88ccbc9e77270a55249a5d1694af3c39749bd6192f3d6bd977d3d3f24",
+      "usage": "extension asset"
+    },
+    {
+      "path": "icons/ice.svg",
+      "bytes": 307,
+      "sha256": "e307ea39e198149e906bcc85237515c80d9e1d50eb2927c8afcd32c3e6faab21",
+      "usage": "extension asset"
+    },
+    {
+      "path": "icons/league-crest.svg",
+      "bytes": 323,
+      "sha256": "76edc53f7821b0744e117cecd3ee044007de871cd36ecc828f0ebfaafa04be5e",
+      "usage": "integrated"
+    },
+    {
+      "path": "icons/normal.svg",
+      "bytes": 225,
+      "sha256": "a029e3859419c6334f0a64953c526edc127b8d633fedb6932ce8256b9e8c3c65",
+      "usage": "extension asset"
+    },
+    {
+      "path": "icons/pause.svg",
+      "bytes": 205,
+      "sha256": "4427ca4c3c08d42c5d315ed2b13ee6445207a6a6ca89d51b7739dba913aa11a9",
+      "usage": "extension asset"
+    },
+    {
+      "path": "icons/play.svg",
+      "bytes": 192,
+      "sha256": "5be373c958c70418fc29f62470860ff1671343e5e30dce9c82e679c094afbacd",
+      "usage": "extension asset"
+    },
+    {
+      "path": "icons/poison.svg",
+      "bytes": 320,
+      "sha256": "d51ebe9f3f0848856e73322813f784d67db004dfe9222463ff6ad96ed6b7f238",
+      "usage": "extension asset"
+    },
+    {
+      "path": "icons/pokeball.svg",
+      "bytes": 261,
+      "sha256": "e57014faf3b5de8a3aa2f508b9310738ef48e3cbf4ed8335062638e1ee2e5432",
+      "usage": "extension asset"
+    },
+    {
+      "path": "icons/psychic.svg",
+      "bytes": 274,
+      "sha256": "53780c614e87c4946ffb7e61a8b45fcdc46e215256a17be4168fdbed89f683a3",
+      "usage": "extension asset"
+    },
+    {
+      "path": "icons/quick-battle.svg",
+      "bytes": 243,
+      "sha256": "21b150ca0f30f592775492cc1665b5d521ae59d723dfdb18deb2fcd6a0f713ca",
+      "usage": "extension asset"
+    },
+    {
+      "path": "icons/records.svg",
+      "bytes": 227,
+      "sha256": "5bd8c22fa560e6585924fca2f3e56a13243e28b581223cbf0dbbedfc2edaf35f",
+      "usage": "extension asset"
+    },
+    {
+      "path": "icons/rock.svg",
+      "bytes": 251,
+      "sha256": "9ee5a653bcc618316538619afe37f1051a298e68c24080708cdeb5aa32441ed5",
+      "usage": "extension asset"
+    },
+    {
+      "path": "icons/settings.svg",
+      "bytes": 563,
+      "sha256": "5b6c77227a6fd4dd5540d27820dd5d001f0a9184a5c279e0e0c97618f73fc546",
+      "usage": "extension asset"
+    },
+    {
+      "path": "icons/steel.svg",
+      "bytes": 235,
+      "sha256": "550ec2ae3cf28fac447d812315657f31717f6a5f5234621da178c4b1a68efdd2",
+      "usage": "extension asset"
+    },
+    {
+      "path": "icons/trophy.svg",
+      "bytes": 323,
+      "sha256": "935db641fbb9789c4354087d7aad960bc2ab56f99a33336d46c08fbb0cd0b2fa",
+      "usage": "integrated"
+    },
+    {
+      "path": "icons/type-bug.svg",
+      "bytes": 423,
+      "sha256": "5a3892b0d07536dba5c15660466b7cd9af7b55f52e24bd2d5b3dca1b7659165c",
+      "usage": "extension asset"
+    },
+    {
+      "path": "icons/type-dark.svg",
+      "bytes": 349,
+      "sha256": "a887225587c2c01fe1929a758c61ec940733ead1b81822e55480b88096a2e220",
+      "usage": "extension asset"
+    },
+    {
+      "path": "icons/type-dragon.svg",
+      "bytes": 385,
+      "sha256": "4b9a541e56e0b8592f3eb8a0b98aed80256b4794ded7d10cf6931173951e05fd",
+      "usage": "extension asset"
+    },
+    {
+      "path": "icons/type-electric.svg",
+      "bytes": 313,
+      "sha256": "195ccf13a39638f1c63039364ab746f7311efcb5b121141e669e35326634c819",
+      "usage": "extension asset"
+    },
+    {
+      "path": "icons/type-fairy.svg",
+      "bytes": 384,
+      "sha256": "c0ecd54fc4abd3674faff35804a277ce455482d0d699afbf74ad6137fb034772",
+      "usage": "extension asset"
+    },
+    {
+      "path": "icons/type-fighting.svg",
+      "bytes": 374,
+      "sha256": "c7ecf02d54de4137229f43c979fafbdab7ea8c4912bd77be119c5cf5072bfb74",
+      "usage": "extension asset"
+    },
+    {
+      "path": "icons/type-fire.svg",
+      "bytes": 368,
+      "sha256": "a72bb47aad73a8d6d8077c035a8615e995c446a5ededdb4af4ea1fd77c0a89df",
+      "usage": "extension asset"
+    },
+    {
+      "path": "icons/type-flying.svg",
+      "bytes": 348,
+      "sha256": "948bfb53f10e2a7d566a3a1dfbe44ee2589008f8bf7a52e9e56b9b7b33b52afa",
+      "usage": "extension asset"
+    },
+    {
+      "path": "icons/type-ghost.svg",
+      "bytes": 411,
+      "sha256": "f26f53c6fae540bd37ff7547d8d236340f06255c787a8c728544e044eb93d8f7",
+      "usage": "extension asset"
+    },
+    {
+      "path": "icons/type-grass.svg",
+      "bytes": 343,
+      "sha256": "2c32d1532dd4cb22467f661a2ecd686edafd79b932b710b55f7af82373919459",
+      "usage": "extension asset"
+    },
+    {
+      "path": "icons/type-ground.svg",
+      "bytes": 343,
+      "sha256": "0cce9afd19e103eebe6415a98d02b223033b5e7e8862f5d25a13d37badda1d7c",
+      "usage": "extension asset"
+    },
+    {
+      "path": "icons/type-ice.svg",
+      "bytes": 417,
+      "sha256": "278e3f731b4cf472e777d3667f6ce3e8971abfde494e5c4ed16760ba7816704a",
+      "usage": "extension asset"
+    },
+    {
+      "path": "icons/type-normal.svg",
+      "bytes": 335,
+      "sha256": "665c6628e09b398e9e57d555b6288fc1695f60d942811ad9379691bb7b79875f",
+      "usage": "extension asset"
+    },
+    {
+      "path": "icons/type-poison.svg",
+      "bytes": 430,
+      "sha256": "4e7ab73ef03001333d6a8b634d3bb33788cce792c351c25663c2cdc897454916",
+      "usage": "extension asset"
+    },
+    {
+      "path": "icons/type-psychic.svg",
+      "bytes": 384,
+      "sha256": "34fe9ec9e2ebf10db2f6b987f34f5e975ee4e8ff2a96d8056d32b95a7eac9d6f",
+      "usage": "extension asset"
+    },
+    {
+      "path": "icons/type-rock.svg",
+      "bytes": 361,
+      "sha256": "aa576edb1bb89897b435b1a7b878917b477c6cac5439a3fedd8d3da0009e7589",
+      "usage": "extension asset"
+    },
+    {
+      "path": "icons/type-steel.svg",
+      "bytes": 345,
+      "sha256": "d37d04686aa840c9711d23c691961d9f69304e8877c3d7c5018ed263ceab0376",
+      "usage": "extension asset"
+    },
+    {
+      "path": "icons/type-water.svg",
+      "bytes": 348,
+      "sha256": "257f28bdad04622929f1301680f314308d83609f76d1e678cbc4c47b03bc8ec1",
+      "usage": "extension asset"
+    },
+    {
+      "path": "icons/water.svg",
+      "bytes": 238,
+      "sha256": "1a46e3366637ced90a174dc9ff45e316d1d7edc103bb29760c46ba3dbf3389ab",
+      "usage": "extension asset"
+    },
+    {
+      "path": "maps/azure_bay-thumb.webp",
+      "bytes": 94354,
+      "sha256": "dd6f746df9d6ffd891af94ec9c7c01de6a06cd7f722ad936ae08ed1f8e355d4a",
+      "usage": "integrated",
+      "dimensions": [
+        800,
+        426
+      ]
+    },
+    {
+      "path": "maps/azure_bay.webp",
+      "bytes": 477554,
+      "sha256": "fb5742e1c1a80119ed30973e44a11d70c301af0509bf080bbf9544d38c0a8ccc",
+      "usage": "integrated",
+      "dimensions": [
+        1719,
+        915
+      ]
+    },
+    {
+      "path": "maps/bell_tower-thumb.webp",
+      "bytes": 90938,
+      "sha256": "513cfa96a08768b0240a0f96e15dd5d2ac39a8b9364f73cd745dd5bdb660fbe4",
+      "usage": "integrated",
+      "dimensions": [
+        800,
+        426
+      ]
+    },
+    {
+      "path": "maps/bell_tower.webp",
+      "bytes": 468740,
+      "sha256": "de4d2f256f7acc0267b5a62a5f4a1e2d49afec5a5fd45a06c73507455ed6981c",
+      "usage": "integrated",
+      "dimensions": [
+        1719,
+        915
+      ]
+    },
+    {
+      "path": "maps/cerulean_gym-thumb.webp",
+      "bytes": 68718,
+      "sha256": "2fa293e956be7d87fac520fa66d4b1cc0dc96da857d98e2609c481d32dcb8207",
+      "usage": "integrated",
+      "dimensions": [
+        800,
+        426
+      ]
+    },
+    {
+      "path": "maps/cerulean_gym.webp",
+      "bytes": 332120,
+      "sha256": "a375d39621076400ddf326ee830d6c7ea116498950eb9f95b6039fd189a11fd6",
+      "usage": "integrated",
+      "dimensions": [
+        1719,
+        915
+      ]
+    },
+    {
+      "path": "maps/dragonspiral-thumb.webp",
+      "bytes": 142716,
+      "sha256": "22da89e828bd67167d673febd5dc5f3f2712ba95cdc6d4e334b3fbd8d1418f65",
+      "usage": "integrated",
+      "dimensions": [
+        800,
+        426
+      ]
+    },
+    {
+      "path": "maps/dragonspiral.webp",
+      "bytes": 701576,
+      "sha256": "fff1587d49e95c7ab74b267f4dcf73f2edcdb4454ae479e6797f2f7465a48ce7",
+      "usage": "integrated",
+      "dimensions": [
+        1719,
+        915
+      ]
+    },
+    {
+      "path": "maps/indigo-thumb.webp",
+      "bytes": 94910,
+      "sha256": "03bc7f723cdf52c8aa261d563a5eb40fac919ff3ea341be695166b5150a6d453",
+      "usage": "integrated",
+      "dimensions": [
+        686,
+        450
+      ]
+    },
+    {
+      "path": "maps/indigo.webp",
+      "bytes": 578374,
+      "sha256": "5cabecbe1653537e140c5ae0112b66e53279ac012e34bb840d825073609604cd",
+      "usage": "integrated",
+      "dimensions": [
+        1548,
+        1016
+      ]
+    },
+    {
+      "path": "maps/kanto_skies-thumb.webp",
+      "bytes": 108008,
+      "sha256": "6f019b72f8a77b19fdff1443528876fd5878c8f90a2915d9287522a54dd8fafb",
+      "usage": "integrated",
+      "dimensions": [
+        751,
+        450
+      ]
+    },
+    {
+      "path": "maps/kanto_skies.webp",
+      "bytes": 533538,
+      "sha256": "debd8c9c90092b32135c522c3b49716e7074099aacfadafd0b212eb8a06d23de",
+      "usage": "integrated",
+      "dimensions": [
+        1620,
+        971
+      ]
+    },
+    {
+      "path": "maps/lumiose-thumb.webp",
+      "bytes": 149794,
+      "sha256": "4c7d4cbc0d59c34fe182da493aaf30edea451e67181918db91d40ffc64effe13",
+      "usage": "integrated",
+      "dimensions": [
+        800,
+        426
+      ]
+    },
+    {
+      "path": "maps/lumiose.webp",
+      "bytes": 754092,
+      "sha256": "28f0c7294246377c9a6934ebdf5a720f82cfc3b2855b31793f163dd46c13cb7e",
+      "usage": "integrated",
+      "dimensions": [
+        1719,
+        915
+      ]
+    },
+    {
+      "path": "maps/mt_chimney-thumb.webp",
+      "bytes": 83184,
+      "sha256": "a3f39fcb517688242038633e14c3ef449d10cd988118c35bf072f9c5ab61214c",
+      "usage": "integrated",
+      "dimensions": [
+        800,
+        426
+      ]
+    },
+    {
+      "path": "maps/mt_chimney.webp",
+      "bytes": 478868,
+      "sha256": "f29a44f2adf00eeca1ee36664ba902e28158c175f405ec923a70625418ad995a",
+      "usage": "integrated",
+      "dimensions": [
+        1719,
+        915
+      ]
+    },
+    {
+      "path": "maps/sky_pillar-thumb.webp",
+      "bytes": 34102,
+      "sha256": "d8c41e9dc3eb65e18373dd7aaa582468bc3b92467b6cc1065facc8e21a2cfbaf",
+      "usage": "integrated",
+      "dimensions": [
+        800,
+        426
+      ]
+    },
+    {
+      "path": "maps/sky_pillar.webp",
+      "bytes": 166570,
+      "sha256": "04edc29d87932ee4cffa9c503e8526ae50d9f0f52553461b5c2f109db4464bb4",
+      "usage": "integrated",
+      "dimensions": [
+        1719,
+        915
+      ]
+    },
+    {
+      "path": "maps/sootopolis-thumb.webp",
+      "bytes": 89896,
+      "sha256": "96b194eee0687abf7b6c7757b0abd534a6a7ca904ff6690c8b8a82f908402130",
+      "usage": "integrated",
+      "dimensions": [
+        800,
+        426
+      ]
+    },
+    {
+      "path": "maps/sootopolis.webp",
+      "bytes": 477210,
+      "sha256": "fb46e34c505146d841e925b8c50b14cef0f26312c942fa42ab02e4a0a50fc632",
+      "usage": "integrated",
+      "dimensions": [
+        1719,
+        915
+      ]
+    },
+    {
+      "path": "maps/spear_pillar-thumb.webp",
+      "bytes": 91034,
+      "sha256": "03447a1c0a059f7989fb1428c2147c6390fce9bff6c661706b66702d2aa6b91a",
+      "usage": "integrated",
+      "dimensions": [
+        800,
+        426
+      ]
+    },
+    {
+      "path": "maps/spear_pillar.webp",
+      "bytes": 461544,
+      "sha256": "c3444706de86ff8d2d570a43ca30a931d48143603fb488637b48428910c4bc73",
+      "usage": "integrated",
+      "dimensions": [
+        1719,
+        915
+      ]
+    },
+    {
+      "path": "maps/whirl_islands-thumb.webp",
+      "bytes": 63040,
+      "sha256": "22883d0a5da2ef275247228ec622ba6cadfeb652ffa04d3953f036c9ecfc3ba1",
+      "usage": "integrated",
+      "dimensions": [
+        800,
+        426
+      ]
+    },
+    {
+      "path": "maps/whirl_islands.webp",
+      "bytes": 332178,
+      "sha256": "ea0286b7b66ab5ae2e53976b61e1b16a8b44ad4a7cc4ebb33b7575e6e42b5e68",
+      "usage": "integrated",
+      "dimensions": [
+        1719,
+        915
+      ]
+    },
+    {
+      "path": "portraits/arbok.png",
+      "bytes": 181492,
+      "sha256": "f1e38593fba1de6e6db3d5db819f1b851307f342abb819f9c2ebfbbea9b93d42",
+      "usage": "integrated",
+      "dimensions": [
+        475,
+        475
+      ]
+    },
+    {
+      "path": "portraits/articuno.png",
+      "bytes": 160360,
+      "sha256": "d85d2a2dd08e8f0d797298f9db4bab91a6b0ee6e03999333be55fc5cf09b3043",
+      "usage": "integrated",
+      "dimensions": [
+        475,
+        475
+      ]
+    },
+    {
+      "path": "portraits/blastoise.png",
+      "bytes": 197853,
+      "sha256": "ba0a6b633e7a5d5a8c52498b0556518005fd4c63ef4564a8b06b79a73905a635",
+      "usage": "integrated",
+      "dimensions": [
+        475,
+        475
+      ]
+    },
+    {
+      "path": "portraits/blaziken.png",
+      "bytes": 122531,
+      "sha256": "56fc2d08ad58031fa04af4453f5998b95c5817d68f552f5c760682f07c99c91c",
+      "usage": "integrated",
+      "dimensions": [
+        475,
+        475
+      ]
+    },
+    {
+      "path": "portraits/chansey.png",
+      "bytes": 153542,
+      "sha256": "8233229237ea208457fccd44311aa1efb2401282584fb745a279158e2e2b3cc0",
+      "usage": "integrated",
+      "dimensions": [
+        475,
+        475
+      ]
+    },
+    {
+      "path": "portraits/charizard.png",
+      "bytes": 144568,
+      "sha256": "b6d5b8ee9fb05dc6f53294b2cae660dec770b92762cdb19d16bcbd679e1ba43a",
+      "usage": "integrated",
+      "dimensions": [
+        475,
+        475
+      ]
+    },
+    {
+      "path": "portraits/charizard_mega.png",
+      "bytes": 170074,
+      "sha256": "d7650ad47e44981447de3f558e5b4a102d1b378559b33608352287a824c1d68d",
+      "usage": "integrated",
+      "dimensions": [
+        475,
+        475
+      ]
+    },
+    {
+      "path": "portraits/darkrai.png",
+      "bytes": 134465,
+      "sha256": "79bb2618a2590871538b674bc8052b6587a479f6a09377b6378fbc4976437c84",
+      "usage": "integrated",
+      "dimensions": [
+        475,
+        475
+      ]
+    },
+    {
+      "path": "portraits/deoxys.png",
+      "bytes": 109840,
+      "sha256": "9957c0b49f1a1f5dbc084af586b6272a3ddfc54f479f1253cbc023e4cf09bd60",
+      "usage": "integrated",
+      "dimensions": [
+        475,
+        475
+      ]
+    },
+    {
+      "path": "portraits/deoxys_attack.png",
+      "bytes": 113212,
+      "sha256": "718d046a968f097bc43e28c1b2dfa13a75b239669933be32d2b30768bcb647ca",
+      "usage": "integrated",
+      "dimensions": [
+        475,
+        475
+      ]
+    },
+    {
+      "path": "portraits/deoxys_defense.png",
+      "bytes": 141496,
+      "sha256": "7285dbd5a9a09d8b2299bbdcc45544d3ae7729e1fb8c3b6eb56f9935992a5008",
+      "usage": "integrated",
+      "dimensions": [
+        475,
+        475
+      ]
+    },
+    {
+      "path": "portraits/deoxys_speed.png",
+      "bytes": 122939,
+      "sha256": "5768913c96cb9a488644c807ed6b0f5acf30113c0ef3b894e8daa84ef80443fa",
+      "usage": "integrated",
+      "dimensions": [
+        475,
+        475
+      ]
+    },
+    {
+      "path": "portraits/empoleon.png",
+      "bytes": 126789,
+      "sha256": "4d8697a9e331f7bc6b57495d5bb1f7df049ab94aaaa66e2a3ea9131eec067f0c",
+      "usage": "integrated",
+      "dimensions": [
+        475,
+        475
+      ]
+    },
+    {
+      "path": "portraits/entei.png",
+      "bytes": 173599,
+      "sha256": "b5e6bdd788e7e099fc464fea9a11db1063b40e28136446f90932078d62c35f09",
+      "usage": "integrated",
+      "dimensions": [
+        475,
+        475
+      ]
+    },
+    {
+      "path": "portraits/garchomp.png",
+      "bytes": 152831,
+      "sha256": "c9122fe26666487f152bc299ce73257141d5e762d486ac49867c97b19342980f",
+      "usage": "integrated",
+      "dimensions": [
+        475,
+        475
+      ]
+    },
+    {
+      "path": "portraits/gliscor.png",
+      "bytes": 149822,
+      "sha256": "9e902ab70836789a73430ad13ed6420b703f357cafc4c827ef2138a7856a7a60",
+      "usage": "integrated",
+      "dimensions": [
+        475,
+        475
+      ]
+    },
+    {
+      "path": "portraits/greninja.png",
+      "bytes": 91388,
+      "sha256": "e88f4590ff53a8f8965c9e1be19a0f069c51c4dc7ca64ecb25ac96c64c8504d3",
+      "usage": "integrated",
+      "dimensions": [
+        475,
+        475
+      ]
+    },
+    {
+      "path": "portraits/growlithe.png",
+      "bytes": 151687,
+      "sha256": "05f90f8fec5729ef41ee205acf7d81a97e84cd6a82c5babf6e4eacf5662ee57a",
+      "usage": "integrated",
+      "dimensions": [
+        475,
+        475
+      ]
+    },
+    {
+      "path": "portraits/gyarados.png",
+      "bytes": 146784,
+      "sha256": "41d17760b81321cc7a3fb2cb1568d3c33010e892b687eeacb3738ba307071f8b",
+      "usage": "integrated",
+      "dimensions": [
+        475,
+        475
+      ]
+    },
+    {
+      "path": "portraits/hawlucha.png",
+      "bytes": 124806,
+      "sha256": "041072a1c2ef2b141295050f97a51132370e4db24da7f45286d9f96a1210543e",
+      "usage": "integrated",
+      "dimensions": [
+        475,
+        475
+      ]
+    },
+    {
+      "path": "portraits/ho_oh.png",
+      "bytes": 159543,
+      "sha256": "e5742142da852da5d1289f7848c12be3a66f792e32a8cd26466dd7bf319da0e7",
+      "usage": "integrated",
+      "dimensions": [
+        475,
+        475
+      ]
+    },
+    {
+      "path": "portraits/infernape.png",
+      "bytes": 173856,
+      "sha256": "0b23361c54a8c17ff414a0abfb79bf642fb9443dc0163e3c6162346c5558e8e3",
+      "usage": "integrated",
+      "dimensions": [
+        475,
+        475
+      ]
+    },
+    {
+      "path": "portraits/kyogre.png",
+      "bytes": 114865,
+      "sha256": "a24962e9bd96fb84e69872ed7e6f1982c08b4241df60c5f64a1c0cfa7a651878",
+      "usage": "integrated",
+      "dimensions": [
+        475,
+        475
+      ]
+    },
+    {
+      "path": "portraits/kyogre_primal.png",
+      "bytes": 142476,
+      "sha256": "9f1b6e66f6e20aa6e3796aab6543df31b6faa7db19e074208d8451db6596a111",
+      "usage": "integrated",
+      "dimensions": [
+        475,
+        475
+      ]
+    },
+    {
+      "path": "portraits/lapras.png",
+      "bytes": 135952,
+      "sha256": "ffd98849dee0a265bb109d9798dbfd18b35346a1c21ca01aa0dab60a72defbc6",
+      "usage": "integrated",
+      "dimensions": [
+        475,
+        475
+      ]
+    },
+    {
+      "path": "portraits/latias.png",
+      "bytes": 85417,
+      "sha256": "2c184ea362a6c65ee6fabe756067f97f62a99aa374a69075856a0c29768b4911",
+      "usage": "integrated",
+      "dimensions": [
+        475,
+        475
+      ]
+    },
+    {
+      "path": "portraits/latias_mega.png",
+      "bytes": 117662,
+      "sha256": "ab78939e3fc9bd08728d5bbb5c42c2af1e9760b4e186ee8e6abf6b0a98a102b7",
+      "usage": "integrated",
+      "dimensions": [
+        475,
+        475
+      ]
+    },
+    {
+      "path": "portraits/latios.png",
+      "bytes": 84078,
+      "sha256": "36410fb32ec67d3e55b80cdf957cf2a9aa2c1d829bd2618d2cdc062b70b93add",
+      "usage": "integrated",
+      "dimensions": [
+        475,
+        475
+      ]
+    },
+    {
+      "path": "portraits/latios_mega.png",
+      "bytes": 83816,
+      "sha256": "6eb8d1ab0788045a0c63305f496a4b68817d543b495a0ae4e9281cb491f4b831",
+      "usage": "integrated",
+      "dimensions": [
+        475,
+        475
+      ]
+    },
+    {
+      "path": "portraits/lucario.png",
+      "bytes": 91289,
+      "sha256": "8c5064f1d4a37c8b554d7ad83d77970b02d6875750f934c782493c83f8943127",
+      "usage": "integrated",
+      "dimensions": [
+        475,
+        475
+      ]
+    },
+    {
+      "path": "portraits/lucario_mega.png",
+      "bytes": 138895,
+      "sha256": "2f31714a341ae4adcfff9bc406f2fac662b081c18a4c532b02c03357a257acd1",
+      "usage": "integrated",
+      "dimensions": [
+        475,
+        475
+      ]
+    },
+    {
+      "path": "portraits/lugia.png",
+      "bytes": 116903,
+      "sha256": "6977890cdd83d4b542961be5bbe965c8ca92ccff843094be4840939c4f0674d6",
+      "usage": "integrated",
+      "dimensions": [
+        475,
+        475
+      ]
+    },
+    {
+      "path": "portraits/meowth.png",
+      "bytes": 115809,
+      "sha256": "893353baec0dd1ac52a62af4465d28660a959e18beb21c17cd6cd9d3cb2d173c",
+      "usage": "integrated",
+      "dimensions": [
+        475,
+        475
+      ]
+    },
+    {
+      "path": "portraits/metagross.png",
+      "bytes": 127463,
+      "sha256": "a871d3272f6da2fb4df63d2304db65aac08c24a9575e8d7ba6377f2ee87535d0",
+      "usage": "integrated",
+      "dimensions": [
+        475,
+        475
+      ]
+    },
+    {
+      "path": "portraits/mewtwo.png",
+      "bytes": 119320,
+      "sha256": "d99adeb9b4523073ca218a6f472ea5b602b047ccd8af8dea6fa7ae051f80366a",
+      "usage": "integrated",
+      "dimensions": [
+        475,
+        475
+      ]
+    },
+    {
+      "path": "portraits/mewtwo_mega.png",
+      "bytes": 109153,
+      "sha256": "152e53b196e4217e394bb8f7cae40ec4a8c84f85bfff98acb17c55a032b30d52",
+      "usage": "integrated",
+      "dimensions": [
+        475,
+        475
+      ]
+    },
+    {
+      "path": "portraits/milotic.png",
+      "bytes": 164467,
+      "sha256": "b64a73b400ab342ecc7933992c57e67605ae717028185edf451d60a6d9bdcf2c",
+      "usage": "integrated",
+      "dimensions": [
+        475,
+        475
+      ]
+    },
+    {
+      "path": "portraits/moltres.png",
+      "bytes": 94816,
+      "sha256": "f4d46f40e4fc984ebc5eccdaf11540dd1fdd0a756a629b7bb1da72777d5ff85a",
+      "usage": "integrated",
+      "dimensions": [
+        475,
+        475
+      ]
+    },
+    {
+      "path": "portraits/pikachu.png",
+      "bytes": 118057,
+      "sha256": "759ceafdb4b8d637dfcfe673cf672bc3c472354a3b2e7e0835d9cdcacd8d195d",
+      "usage": "integrated",
+      "dimensions": [
+        475,
+        475
+      ]
+    },
+    {
+      "path": "portraits/raikou.png",
+      "bytes": 158206,
+      "sha256": "3d7d4b163d74c2dcfba86d94e49ff0a6adc115b5ef90a830008081b50a9912bd",
+      "usage": "integrated",
+      "dimensions": [
+        475,
+        475
+      ]
+    },
+    {
+      "path": "portraits/rayquaza.png",
+      "bytes": 146860,
+      "sha256": "52fdacd461e20343dc7fd127b062c23429dc63dfe558c94b9aea0dc7a27be939",
+      "usage": "integrated",
+      "dimensions": [
+        475,
+        475
+      ]
+    },
+    {
+      "path": "portraits/rayquaza_mega.png",
+      "bytes": 186606,
+      "sha256": "2cf3cf60f9ebc879f3fe421eab38a772c2f0896beac729c0bbb130d4cfaf71a3",
+      "usage": "integrated",
+      "dimensions": [
+        475,
+        475
+      ]
+    },
+    {
+      "path": "portraits/salamence.png",
+      "bytes": 167442,
+      "sha256": "3d9f18c1a25e998ef5e50e5a447e5f38637ee8a7f428b5f4477091a9b8192d3f",
+      "usage": "integrated",
+      "dimensions": [
+        475,
+        475
+      ]
+    },
+    {
+      "path": "portraits/sceptile.png",
+      "bytes": 151728,
+      "sha256": "f0d143504a9da150a51c88c0a8c5deb2fc7a0c95717b003fd45de27ad95f43ed",
+      "usage": "integrated",
+      "dimensions": [
+        475,
+        475
+      ]
+    },
+    {
+      "path": "portraits/scizor.png",
+      "bytes": 136495,
+      "sha256": "67765e304fa030422abc88e4b1f5eae21cb558e9b6dc0f1a43656f0f1daf6434",
+      "usage": "integrated",
+      "dimensions": [
+        475,
+        475
+      ]
+    },
+    {
+      "path": "portraits/staraptor.png",
+      "bytes": 133959,
+      "sha256": "dd8f43d1a1cc9975af7c56057cdab4a80400ec4dd67b0338490382336fef269f",
+      "usage": "integrated",
+      "dimensions": [
+        475,
+        475
+      ]
+    },
+    {
+      "path": "portraits/starmie.png",
+      "bytes": 198724,
+      "sha256": "4e9cebb6042fd5489471341c5d5778a900662be93e343234468edc2dfe94436f",
+      "usage": "integrated",
+      "dimensions": [
+        475,
+        475
+      ]
+    },
+    {
+      "path": "portraits/suicune.png",
+      "bytes": 191503,
+      "sha256": "e72657f300c9b1db690f61a08b0cafc3ccbbd31548a081b931adf0679bd9f8a6",
+      "usage": "integrated",
+      "dimensions": [
+        475,
+        475
+      ]
+    },
+    {
+      "path": "portraits/tyranitar.png",
+      "bytes": 160001,
+      "sha256": "080b69438af4483ecd73f7ba154b5d5c845726028ac3071bde455de8978bb509",
+      "usage": "integrated",
+      "dimensions": [
+        475,
+        475
+      ]
+    },
+    {
+      "path": "portraits/tyranitar_mega.png",
+      "bytes": 157994,
+      "sha256": "e5042d33e8f7d28ef4f4af88706f3a897b8f10cd4d51034b928e09dfbd8295bd",
+      "usage": "integrated",
+      "dimensions": [
+        475,
+        475
+      ]
+    },
+    {
+      "path": "portraits/venusaur.png",
+      "bytes": 186011,
+      "sha256": "106d0040aa775f95871706c30ddd4abaef2c962215f5e8bd4141e0caef0ef8e4",
+      "usage": "integrated",
+      "dimensions": [
+        475,
+        475
+      ]
+    },
+    {
+      "path": "portraits/weezing.png",
+      "bytes": 148228,
+      "sha256": "2ea5a510c378b6fa2a0fe042bb2cb38ad13c0be17346fd3384acf46544cb9b34",
+      "usage": "integrated",
+      "dimensions": [
+        475,
+        475
+      ]
+    },
+    {
+      "path": "portraits/zapdos.png",
+      "bytes": 110704,
+      "sha256": "6435d62ab354ac4bfc94eaf8dda48a4ea3cb24f5e64d48cab9dafd5194f458cc",
+      "usage": "integrated",
+      "dimensions": [
+        475,
+        475
+      ]
+    },
+    {
+      "path": "ui/panel-gold.svg",
+      "bytes": 349,
+      "sha256": "ba04efb6acf6e5446ca154e1af1d2ff28381e887eae79b676e7e61aa27eaffed",
+      "usage": "extension asset"
+    },
+    {
+      "path": "ui/panel-ivory.svg",
+      "bytes": 349,
+      "sha256": "e56003e91249e4985c44c7d697030db212e6fce133e8c2e2c07c3b331d1eda99",
+      "usage": "extension asset"
+    },
+    {
+      "path": "ui/panel-ruby.svg",
+      "bytes": 349,
+      "sha256": "f25ceb319dcba21ea7203d6914c4f5a6677fb75bd5989c68ebf845e40eed7119",
+      "usage": "extension asset"
+    },
+    {
+      "path": "ui/panel-sapphire.svg",
+      "bytes": 349,
+      "sha256": "5fc538242cb97da4bde1b7022c7b1c678b915c139af0c03779e3d75e8b5385fa",
+      "usage": "extension asset"
+    },
+    {
+      "path": "ui/panel-teal.svg",
+      "bytes": 349,
+      "sha256": "d5ff4bf0250fc97bba0e876a2482a9b879b22ce4825dfd9a790e8c7b63818e9a",
+      "usage": "extension asset"
+    },
+    {
+      "path": "ui/panel-violet.svg",
+      "bytes": 349,
+      "sha256": "48a274fb70bd69fe0de5c1a47d89b5a0d78d17282507c5a5346a1782f6258c3d",
+      "usage": "extension asset"
+    },
+    {
+      "path": "ui/title.webp",
+      "bytes": 353502,
+      "sha256": "8614102b4499d85178c9d8a4c6474cdf0b3c419fe1b7f16f6304ff020e3a89c8",
+      "usage": "integrated",
+      "dimensions": [
+        1672,
+        941
+      ]
+    }
+  ]
+}

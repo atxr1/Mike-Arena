@@ -385,3 +385,41 @@ html.reduced .wipe { display: none; }
 .panel { gap: 6px; padding: 12px 22px; }
 .panel .menu-btn { padding: 5px 14px; font-size: 18px; }
 .rung img, .rung .pi { width: 56px !important; height: 56px !important; background-size: auto 56px !important; }
+/* combat 2.0: R glows when a Break is available; the basic attack has no cost badge */
+.t-R.ready svg { filter: drop-shadow(0 0 6px #9fe8ff) drop-shadow(0 0 2px #9fe8ff); animation: pulse 0.5s steps(2) infinite; }
+.t-R.ready .t-lbl { color: #9fe8ff; }
+.t-face.basic .t-cost { display: none; }
+.basics { margin: 0; padding-left: 16px; columns: 2; column-gap: 26px; font: 500 12.5px/1.4 var(--semi); color: #e4dcff; }
+.basics li { break-inside: avoid; margin-bottom: 4px; }
+.basics b { color: var(--gold); }
+.basics svg { vertical-align: -3px; }
+@media (max-width: 700px) { .basics { columns: 1; } }
+/* ---- 2.0: style rank, medals and mastery on the results screen ---- */
+.res-right { justify-content: flex-start; padding-top: 2px; }
+.res-scroll { flex: 1; min-height: 0; overflow-y: auto; touch-action: pan-y; display: flex; flex-direction: column; gap: 7px; }
+.style-row { display: flex; gap: 10px; align-items: stretch; flex: none; }
+.rank { flex: none; width: 74px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: linear-gradient(180deg, #4a3f78, #1d1838); clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%); padding: 3px 0 4px; }
+.rank small { font: italic 700 11px var(--cond); color: var(--dim); }
+.rank b { font: italic 900 40px/0.9 var(--cond); color: var(--gold); animation: bannerIn 0.5s 0.25s cubic-bezier(.2,1.4,.4,1) both; }
+.rank span { font: 700 12px var(--cond); color: var(--cream); }
+.rank-S b { color: #ff8a3d; text-shadow: 0 0 12px #ff8a3d88; } .rank-A b { color: var(--gold); } .rank-B b { color: #8ef0ff; } .rank-C b { color: #c9a6ff; } .rank-D b { color: var(--dim); }
+.medals { flex: 1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; min-width: 0; }
+.medal { display: flex; flex-direction: column; justify-content: center; padding: 4px 10px; background: #1d1838; border-left: 3px solid var(--gold); min-width: 0; animation: rowIn 0.35s calc(0.3s + var(--i, 0) * 0.09s) both; }
+.medal b { font: italic 800 15px/1.1 var(--cond); color: var(--gold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.medal span { font: 500 11px/1.2 var(--semi); color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.medal.none { grid-column: 1 / -1; border-left-color: #3a3264; } .medal.none b { color: var(--cream); }
+.mast { display: flex; align-items: center; gap: 8px; flex: none; font: 600 12px var(--semi); color: var(--cream); }
+.mast-n { white-space: nowrap; } .mast-x { color: var(--gold); white-space: nowrap; font: italic 700 13px var(--cond); }
+.mast i { flex: 1; height: 7px; background: #0d0a1c; border-radius: 4px; overflow: hidden; min-width: 40px; }
+.mast u { display: block; height: 100%; width: calc(var(--to) * 100%); background: linear-gradient(90deg, #ff8a3d, #ffd25a); border-radius: 4px; animation: mastFill 0.9s 0.5s cubic-bezier(.2,.8,.3,1) both; }
+@keyframes mastFill { from { width: calc(var(--from) * 100%); } }
+@keyframes rowIn { from { opacity: 0; transform: translateX(14px); } }
+.cell .lv { position: absolute; top: 2px; right: 3px; min-width: 15px; padding: 0 3px; font: italic 800 11px/15px var(--cond); color: #1a1030; background: var(--gold); text-align: center; clip-path: polygon(3px 0, 100% 0, calc(100% - 3px) 100%, 0 100%); }
+@media (prefers-reduced-motion: reduce) { .medal, .rank b, .mast u { animation: none; } }
+html.reduced .medal, html.reduced .rank b, html.reduced .mast u { animation: none !important; }
+
+/* 2.0: the chain window. Specials (and a full Ultimate) flare while a landed hit can be cancelled into them */
+.t-face.chain svg { filter: drop-shadow(0 0 7px #fff) drop-shadow(0 0 3px var(--tc, #ffd25a)) brightness(1.25); transform: scale(1.08); }
+.t-face.chain .t-lbl { color: #fff3a0; }
+.t-L.chain svg { filter: drop-shadow(0 0 10px #fff) drop-shadow(0 0 4px #ffd25a) brightness(1.3); transform: scale(1.08); animation: none; }
+@media (prefers-reduced-motion: reduce) { .t-face.chain svg, .t-L.chain svg { transform: none; } }

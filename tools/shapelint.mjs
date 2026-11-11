@@ -15,6 +15,8 @@ const hits = [];
 for (const f of FILES) {
   const lines = readFileSync(ROOT + f, 'utf8').split('\n');
   lines.forEach((l, i) => {
+    // the one smooth layer: the full-resolution arena painting under the pixel fighters (World.drawScenery, 2.0)
+    if (/lint: painted scenery/.test(l)) return;
     const code = l.replace(/\/\/.*$/, '');
     for (const [re, name] of BANNED) if (re.test(code)) hits.push(`${f}:${i + 1}: ${name}: ${l.trim().slice(0, 120)}`);
   });

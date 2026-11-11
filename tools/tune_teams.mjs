@@ -1,6 +1,6 @@
 // Team tuner: plays CPU-vs-CPU Trainer Battles between every pair of trainers in one environment and nudges each
 // team's multiplier toward a 50 % win rate, then prints the table for src/content/teambalance.js.
-// Usage: bun tools/tune_teams.mjs --env air [--rounds 6] [--seeds 2] [--out file.json]
+// Usage: bun tools/tune_teams.mjs --env air [--rounds 6] [--seeds 2] [--step 0.22] [--check 4] [--out file.json]
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { registerContent, addSpriteMeta } from '../src/content/index.js';
 import { MAPS_BY_ENV } from '../src/content/maps.js';
@@ -42,7 +42,7 @@ for (let round = 1; round <= ROUNDS; round++) {
   apply();
   rates = measure(round, SEEDS);
   console.log(`${env} round ${round}: ` + ids.map((t) => `${t} ${(rates[t] * 100).toFixed(0)}`).join('  '));
-  for (const t of ids) { const rr = Math.min(0.95, Math.max(0.05, rates[t])); if (Math.abs(rates[t] - 0.5) > 0.05) strength[t] = Math.min(HI * HI, Math.max(LO * LO, strength[t] * Math.pow(0.5 / rr, 0.22))); }
+  for (const t of ids) { const rr = Math.min(0.95, Math.max(0.05, rates[t])); if (Math.abs(rates[t] - 0.5) > 0.05) strength[t] = Math.min(HI * HI, Math.max(LO * LO, strength[t] * Math.pow(0.5 / rr, +(args.step || 0.22)))); }
 }
 apply();
 const fin = measure(999, +(args.check || SEEDS * 2));
